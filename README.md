@@ -1,20 +1,24 @@
 # Forge - AI-Powered Software Engineering Assistant
 
+![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Status](https://img.shields.io/badge/Status-Phase_1_Active-success)
+
 **Forge** es un asistente de ingeniería de software inteligente de interfaz de línea de comandos (CLI) diseñado para agilizar tu flujo de desarrollo local. En su primera fase, Forge analiza de manera inteligente los cambios en el *staging area* de Git y genera mensajes de commit precisos, descriptivos y con formato perfecto.
 
 ---
 
-## ✨ Características (Fase 1)
+## Características (Fase 1)
 
-- **⚡ Conventional Commits Estrictos**: Genera mensajes que cumplen a cabalidad con el estándar Conventional Commits (`feat(auth): ...`), garantizando compatibilidad total con linters estrictos como `commitlint` y herramientas de automatización de versiones.
-- **🌐 Agnóstico al Proveedor de IA**: No estás atado a un solo proveedor. Configura y utiliza cualquier API compatible con OpenAI, incluyendo **OpenRouter**, **OpenAI**, **Groq**, **Anthropic** (vía gateways) o modelos ejecutados localmente (como Ollama o LM Studio).
-- **🧙‍♂️ Asistente Interactivo (Wizard)**: Olvídate de configurar variables de entorno complejas a mano. Al ejecutar Forge por primera vez, un asistente guiado te ayudará a configurar tu proveedor, modelo e idioma favorito, guardando todo de forma segura en `~/.forge.json` (con permisos protegidos `0600`).
-- **🌍 Soporte Multilenguaje Nativo**: Genera propuestas de commit directamente en tu idioma local (**Español**, Inglés, etc.) con formato conciso y viñetas cortas que respetan el límite de 80 caracteres por línea.
-- **🛡️ Human-in-the-Loop Estricto**: La IA propone, pero tú siempre tienes el control final. Revisa la propuesta generada y acéptala con un simple `Enter` o cáncelala instantáneamente.
+- **Conventional Commits Estrictos**: Genera mensajes que cumplen a cabalidad con el estándar Conventional Commits (`feat(auth): ...`), garantizando compatibilidad total con linters estrictos como `commitlint` y herramientas de automatización de versiones.
+- **Agnóstico al Proveedor de IA**: No estás atado a un solo proveedor. Configura y utiliza cualquier API compatible con OpenAI, incluyendo **OpenRouter**, **OpenAI**, **Groq**, **Anthropic** (vía gateways) o modelos ejecutados localmente (como Ollama o LM Studio).
+- **Asistente Interactivo (Wizard)**: Olvídate de configurar variables de entorno complejas a mano. Al ejecutar Forge por primera vez, un asistente guiado te ayudará a configurar tu proveedor, modelo e idioma favorito, guardando todo de forma segura en `~/.forge.json` (con permisos protegidos `0600`).
+- **Soporte Multilenguaje Nativo**: Genera propuestas de commit directamente en tu idioma local (**Español**, Inglés, etc.) con formato conciso y viñetas cortas que respetan el límite de 80 caracteres por línea.
+- **Human-in-the-Loop Estricto**: La IA propone, pero tú siempre tienes el control final. Revisa la propuesta generada y acéptala con un simple `Enter` o cáncelala instantáneamente.
 
 ---
 
-## 🚀 Instalación
+## Instalación
 
 ### Prerrequisitos
 Asegúrate de tener [Go](https://go.dev/doc/install) instalado en tu sistema (versión 1.21 o superior).
@@ -41,7 +45,7 @@ go install github.com/edisonCheca/forge@latest
 
 ---
 
-## 💡 Uso
+## Uso
 
 El flujo de trabajo es extremadamente rápido y natural:
 
@@ -69,22 +73,22 @@ feat(cli): integrar wizard interactivo de configuración y soporte en español
 - reestructurar adaptador http para dar soporte agnóstico a openrouter
 
 ¿Aceptar este commit? [Y/n]: Y
-✅ Commit creado exitosamente.
+Commit creado exitosamente.
 ```
 
 ---
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 Forge está construido bajo los principios de la **Arquitectura Hexagonal Pragmática (Puertos y Adaptadores)**. El núcleo computacional y las reglas de negocio (`core`) se encuentran completamente desacoplados de la infraestructura externa (como el sistema de archivos, el CLI de Git y los clientes HTTP de IA).
 
 Para conocer a fondo las decisiones arquitectónicas, principios de ingeniería y el diseño de la base del código, consulta nuestro documento de arquitectura:
 
-👉 **[Documento de Arquitectura de Forge](docs/ARCHITECTURE.md)**
+[Documento de Arquitectura de Forge](docs/ARCHITECTURE.md)
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
