@@ -18,7 +18,6 @@ var commitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "Auto-generate a commit message based on staged changes",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// 1. Inyección de dependencias y asistente de configuración (Wizard)
 		cfg := config.NewAppConfig()
 		apiKey := cfg.GetAIApiKey()
 		baseURL := cfg.GetAIBaseURL()
@@ -27,15 +26,17 @@ var commitCmd = &cobra.Command{
 		reader := bufio.NewReader(os.Stdin)
 
 		if apiKey == "" {
-			fmt.Println("===================================================================")
-			fmt.Println("Forge - Asistente de Configuración Inicial")
-			fmt.Println("===================================================================")
-			fmt.Println("Para generar propuestas de commit, Forge requiere conectarse a una API")
-			fmt.Println("compatible con OpenAI (ej. OpenRouter, OpenAI, Groq, Ollama local).")
-			fmt.Println("\nPresione [Enter] en cualquier opción para aceptar el valor por defecto.")
-			fmt.Println("-------------------------------------------------------------------")
+			fmt.Println()
+			fmt.Println(Banner)
+			printSeparator()
+			fmt.Println(styleTitle("Asistente de Configuración Inicial"))
+			fmt.Println()
+			fmt.Println(styleInfo("Forge es agnóstico: puedes usar cualquier proveedor de IA (OpenRouter, Groq, Ollama, OpenAI, etc.)."))
+			fmt.Println(styleInfo("Presione [Enter] en cualquier opción para aceptar el valor por defecto."))
+			fmt.Println()
+			printSeparator()
 
-			fmt.Print("1. URL base de la API [Por defecto: https://openrouter.ai/api/v1/chat/completions]: ")
+			fmt.Print(promptPrefix("1. URL base de la API [Por defecto: https://openrouter.ai/api/v1/chat/completions]: "))
 			urlInput, err := reader.ReadString('\n')
 			if err != nil && err.Error() != "EOF" {
 				return fmt.Errorf("error al leer la URL base: %w", err)
@@ -45,7 +46,7 @@ var commitCmd = &cobra.Command{
 				baseURL = "https://openrouter.ai/api/v1/chat/completions"
 			}
 
-			fmt.Print("2. Modelo de IA [Por defecto: openai/gpt-4o-mini]: ")
+			fmt.Print(promptPrefix("2. Modelo de IA [Por defecto: openai/gpt-4o-mini]: "))
 			modelInput, err := reader.ReadString('\n')
 			if err != nil && err.Error() != "EOF" {
 				return fmt.Errorf("error al leer el modelo: %w", err)
@@ -55,7 +56,7 @@ var commitCmd = &cobra.Command{
 				model = "openai/gpt-4o-mini"
 			}
 
-			fmt.Print("3. API Key (Token de autenticación obligatorio): ")
+			fmt.Print(promptPrefix("3. API Key (Token de autenticación obligatorio): "))
 			keyInput, err := reader.ReadString('\n')
 			if err != nil && err.Error() != "EOF" {
 				return fmt.Errorf("error al leer el API Key: %w", err)
@@ -65,7 +66,7 @@ var commitCmd = &cobra.Command{
 				return fmt.Errorf("el API Key es obligatorio para configurar Forge")
 			}
 
-			fmt.Print("4. Idioma para los commits (ej. 'es', 'en') [Por defecto: es]: ")
+			fmt.Print(promptPrefix("4. Idioma para los commits (ej. 'es', 'en') [Por defecto: es]: "))
 			langInput, err := reader.ReadString('\n')
 			if err != nil && err.Error() != "EOF" {
 				return fmt.Errorf("error al leer el idioma: %w", err)
@@ -78,29 +79,36 @@ var commitCmd = &cobra.Command{
 			if err := cfg.SaveConfig(baseURL, model, apiKey, language); err != nil {
 				return fmt.Errorf("error al guardar la configuración: %w", err)
 			}
-			fmt.Println("-------------------------------------------------------------------")
-			fmt.Println("[OK] Configuración guardada exitosamente en ~/.forge.json")
-			fmt.Println("===================================================================\n")
+			fmt.Println()
+			printSeparator()
+			fmt.Println(styleSuccess("Configuración guardada exitosamente en ~/.forge.json"))
+			printSeparator()
+			fmt.Println()
 		}
 
 		gitAdapter := git.NewGitAdapter()
 		aiAdapter := ai.NewOpenAIAdapter(apiKey, baseURL, model)
 		workflow := core.NewCommitWorkflow(gitAdapter, aiAdapter, cfg)
 
-		// 2. Ejecución del workflow con retroalimentación visual al usuario
-		fmt.Println("[INFO] Analizando cambios en staging...")
+		fmt.Println(styleAction("Analizando cambios en staging..."))
 		proposal, err := workflow.Execute(cmd.Context())
 		if err != nil {
 			if errors.Is(err, core.ErrNoStagedChanges) {
-				fmt.Println("[WARN] No hay cambios en staging. Utilice 'git add <archivos>' primero.")
+				fmt.Println()
+				fmt.Println(styleWarning("No hay cambios en staging. Utilice 'git add <archivos>' primero."))
 				return nil
 			}
 			return fmt.Errorf("error al generar la propuesta de commit: %w", err)
 		}
 
-		// 3. Interactividad (Human-in-the-loop)
-		fmt.Printf("\nPropuesta de Commit:\n\n%s\n\n", proposal.Subject)
-		fmt.Print("¿Aceptar este commit? [Y/n]: ")
+		fmt.Println()
+		printSeparator()
+		fmt.Println(styleTitle(fmt.Sprintf("Propuesta de Commit (%s)", proposal.ModelUsed)))
+		fmt.Println()
+		fmt.Println(ColorWhite + proposal.Subject + ColorReset)
+		fmt.Println()
+		printSeparator()
+		fmt.Print(promptPrefix("¿Aceptar este commit? [Y/n]: "))
 
 		input, err := reader.ReadString('\n')
 		if err != nil && err.Error() != "EOF" {
@@ -112,9 +120,11 @@ var commitCmd = &cobra.Command{
 			if err := gitAdapter.ExecuteCommit(cmd.Context(), proposal.Subject); err != nil {
 				return fmt.Errorf("falló la confirmación en Git: %w", err)
 			}
-			fmt.Println("[OK] Commit creado exitosamente.")
+			fmt.Println()
+			fmt.Println(styleSuccess("Commit creado exitosamente"))
 		} else {
-			fmt.Println("[INFO] Commit abortado por el usuario.")
+			fmt.Println()
+			fmt.Println(styleInfo("Commit abortado por el usuario"))
 		}
 
 		return nil
