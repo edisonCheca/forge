@@ -1,0 +1,17 @@
+# Binarios compilados
+forge
+forge.exe
+*.exe
+bin/
+dist/
+
+# Archivos de configuración locales de IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Archivos de entorno y credenciales
+.env
+*.env
+.forge.json
