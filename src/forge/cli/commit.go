@@ -45,14 +45,14 @@ var commitCmd = &cobra.Command{
 				baseURL = "https://openrouter.ai/api/v1/chat/completions"
 			}
 
-			fmt.Print("2. Modelo de IA [Por defecto: nvidia/nemotron-4-340b-instruct]: ")
+			fmt.Print("2. Modelo de IA [Por defecto: openai/gpt-4o-mini]: ")
 			modelInput, err := reader.ReadString('\n')
 			if err != nil && err.Error() != "EOF" {
 				return fmt.Errorf("error al leer el modelo: %w", err)
 			}
 			model = strings.TrimSpace(modelInput)
 			if model == "" {
-				model = "nvidia/nemotron-4-340b-instruct"
+				model = "openai/gpt-4o-mini"
 			}
 
 			fmt.Print("3. API Key (Token de autenticación obligatorio): ")
