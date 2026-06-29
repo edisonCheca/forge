@@ -15,3 +15,7 @@ dist/
 .env
 *.env
 .forge.json
+
+# Documentación interna de visión futura
+PROJECT_VISION.md
+docs/PROJECT_VISION.md
