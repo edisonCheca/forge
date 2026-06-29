@@ -109,49 +109,73 @@ func (a *OpenAIAdapter) GenerateCommit(ctx context.Context, req *core.GenerateRe
 		return nil, fmt.Errorf("failed to marshal JSON payload for AI request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if attempt > 1 {
+			backoff := time.Duration(attempt) * 1500 * time.Millisecond
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL, bytes.NewReader(bodyBytes))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+		}
+
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
+		httpReq.Header.Set("HTTP-Referer", "https://github.com/forge/forge")
+		httpReq.Header.Set("X-Title", "Forge CLI")
+
+		resp, err := a.httpClient.Do(httpReq)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to execute HTTP request to AI provider (%s): %w", a.baseURL, err)
+			continue
+		}
+
+		rawBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read AI response body: %w", err)
+			continue
+		}
+
+		// Reintentar automáticamente ante saturación de trabajadores (ResourceExhausted), rate limits (429) o errores de servidor (>= 500)
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= http.StatusInternalServerError || strings.Contains(string(rawBody), "ResourceExhausted") || strings.Contains(string(rawBody), "rate limit") {
+			lastErr = fmt.Errorf("AI API request to %s failed with status code %d: %s", a.baseURL, resp.StatusCode, strings.TrimSpace(string(rawBody)))
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("AI API request to %s failed with status code %d: %s", a.baseURL, resp.StatusCode, strings.TrimSpace(string(rawBody)))
+		}
+
+		var parsedResp chatResponse
+		if err := json.Unmarshal(rawBody, &parsedResp); err != nil {
+			return nil, fmt.Errorf("failed to decode AI JSON response: %w. Raw body: %s", err, string(rawBody))
+		}
+
+		if parsedResp.Error != nil && parsedResp.Error.Message != "" {
+			return nil, fmt.Errorf("AI API returned error: %s", parsedResp.Error.Message)
+		}
+
+		if len(parsedResp.Choices) == 0 || strings.TrimSpace(parsedResp.Choices[0].Message.Content) == "" {
+			return nil, fmt.Errorf("AI API returned empty response choices. Raw response: %s", strings.TrimSpace(string(rawBody)))
+		}
+
+		generatedMessage := strings.TrimSpace(parsedResp.Choices[0].Message.Content)
+
+		return &core.CommitProposal{
+			Subject:     generatedMessage,
+			GeneratedAt: time.Now(),
+			ModelUsed:   a.model,
+		}, nil
 	}
 
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/forge/forge")
-	httpReq.Header.Set("X-Title", "Forge CLI")
-
-	resp, err := a.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute HTTP request to AI provider (%s): %w", a.baseURL, err)
-	}
-	defer resp.Body.Close()
-
-	rawBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read AI response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("AI API request to %s failed with status code %d: %s", a.baseURL, resp.StatusCode, strings.TrimSpace(string(rawBody)))
-	}
-
-	var parsedResp chatResponse
-	if err := json.Unmarshal(rawBody, &parsedResp); err != nil {
-		return nil, fmt.Errorf("failed to decode AI JSON response: %w. Raw body: %s", err, string(rawBody))
-	}
-
-	if parsedResp.Error != nil && parsedResp.Error.Message != "" {
-		return nil, fmt.Errorf("AI API returned error: %s", parsedResp.Error.Message)
-	}
-
-	if len(parsedResp.Choices) == 0 || strings.TrimSpace(parsedResp.Choices[0].Message.Content) == "" {
-		return nil, fmt.Errorf("AI API returned empty response choices. Raw response: %s", strings.TrimSpace(string(rawBody)))
-	}
-
-	generatedMessage := strings.TrimSpace(parsedResp.Choices[0].Message.Content)
-
-	return &core.CommitProposal{
-		Subject:     generatedMessage,
-		GeneratedAt: time.Now(),
-		ModelUsed:   a.model,
-	}, nil
+	return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
