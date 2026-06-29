@@ -1,6 +1,6 @@
 # Binarios compilados
-forge
-forge.exe
+/forge
+/forge.exe
 *.exe
 bin/
 dist/
