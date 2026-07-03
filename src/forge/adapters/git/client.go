@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/forge/forge/src/forge/core"
 )
@@ -66,3 +67,60 @@ func (a *GitAdapter) ExecuteCommit(ctx context.Context, message string) error {
 	}
 	return nil
 }
+
+// GetCurrentBranch ejecuta 'git branch --show-current' para obtener la rama activa.
+func (a *GitAdapter) GetCurrentBranch(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "branch", "--show-current")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current branch: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// GetBranchLog obtiene los commits de la rama activa respecto a una rama base.
+func (a *GitAdapter) GetBranchLog(ctx context.Context, baseBranch string) ([]string, error) {
+	if baseBranch == "" {
+		baseBranch = "develop"
+	}
+	cmd := exec.CommandContext(ctx, "git", "log", fmt.Sprintf("%s..HEAD", baseBranch), "--oneline")
+	out, err := cmd.Output()
+	if err != nil {
+		// Si falla con la rama indicada (ej. develop no existe), intentar con main o master
+		if baseBranch == "develop" {
+			for _, fb := range []string{"main", "master"} {
+				cmdFallback := exec.CommandContext(ctx, "git", "log", fmt.Sprintf("%s..HEAD", fb), "--oneline")
+				if outFallback, errFallback := cmdFallback.Output(); errFallback == nil {
+					out = outFallback
+					err = nil
+					break
+				}
+			}
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get branch log against %s: %w", baseBranch, err)
+		}
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var result []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result, nil
+}
+
+// CreatePullRequest invoca a la herramienta CLI oficial de GitHub ('gh') para crear el PR.
+func (a *GitAdapter) CreatePullRequest(ctx context.Context, base, head, title, body string) (string, error) {
+	args := []string{"pr", "create", "--base", base, "--head", head, "--title", title, "--body", body}
+	cmd := exec.CommandContext(ctx, "gh", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("gh pr create failed (%s): %w", strings.TrimSpace(string(out)), err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
