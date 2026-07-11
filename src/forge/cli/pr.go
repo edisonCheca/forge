@@ -7,7 +7,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/forge/forge/src/forge/adapters/ai"
 	"github.com/forge/forge/src/forge/adapters/git"
+	"github.com/forge/forge/src/forge/config"
+	"github.com/forge/forge/src/forge/core"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +21,7 @@ var prCmd = &cobra.Command{
 	Aliases: []string{"pull-request"},
 	Short:   "Create a standardized GitHub Pull Request from current branch",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg := config.NewAppConfig()
 		gitAdapter := git.NewGitAdapter()
 
 		head, err := gitAdapter.GetCurrentBranch(cmd.Context())
@@ -39,7 +43,20 @@ var prCmd = &cobra.Command{
 			fmt.Println(styleWarning(fmt.Sprintf("Advertencia al leer historial contra '%s': %v", baseBranchFlag, err)))
 		}
 
-		title, body := buildPRProposal(head, commits)
+		var title, body string
+		if cfg.GetAIApiKey() != "" {
+			fmt.Println(styleAction("Sintetizando resumen ejecutivo del PR con Inteligencia Artificial..."))
+			aiAdapter := ai.NewOpenAIAdapter(cfg.GetAIApiKey(), cfg.GetAIBaseURL(), cfg.GetSelectedAIModel())
+			prWorkflow := core.NewPRWorkflow(gitAdapter, aiAdapter, cfg)
+			if proposal, errAI := prWorkflow.Execute(cmd.Context(), head, baseBranchFlag, commits); errAI == nil && proposal != nil {
+				title = proposal.Title
+				body = proposal.Body
+			}
+		}
+
+		if title == "" || body == "" {
+			title, body = buildPRProposal(head, commits)
+		}
 
 		printSeparator()
 		fmt.Println(styleTitle("Propuesta de Pull Request:"))
@@ -59,6 +76,11 @@ var prCmd = &cobra.Command{
 
 		answer := strings.TrimSpace(input)
 		if answer == "" || strings.EqualFold(answer, "y") {
+			fmt.Println()
+			fmt.Println(styleAction(fmt.Sprintf("Sincronizando rama '%s' con origin...", head)))
+			if err := gitAdapter.PushBranch(cmd.Context(), head); err != nil {
+				return fmt.Errorf("falló al subir la rama al servidor remoto: %w", err)
+			}
 			fmt.Println(styleAction("Invocando GitHub CLI (gh pr create)..."))
 			out, err := gitAdapter.CreatePullRequest(cmd.Context(), baseBranchFlag, head, title, body)
 			if err != nil {
@@ -162,7 +184,7 @@ func buildPRProposal(head string, commits []string) (string, string) {
 	}
 
 	var bodyBuilder strings.Builder
-	bodyBuilder.WriteString("### 📋 Historia de Usuario\n")
+	bodyBuilder.WriteString("## Historia de Usuario\n")
 	if storyID != "" {
 		bodyBuilder.WriteString(fmt.Sprintf("Closes %s\n", storyID))
 	} else {
@@ -170,12 +192,12 @@ func buildPRProposal(head string, commits []string) (string, string) {
 	}
 
 	if len(subtasks) > 0 {
-		bodyBuilder.WriteString("\n### 🛠️ Subtareas Completadas\n")
+		bodyBuilder.WriteString("\n## Subtareas Completadas\n")
 		for _, st := range subtasks {
 			bodyBuilder.WriteString(fmt.Sprintf("- Resolves %s\n", st))
 		}
 	} else if len(commits) > 0 {
-		bodyBuilder.WriteString("\n### 🛠️ Subtareas Completadas\n")
+		bodyBuilder.WriteString("\n## Subtareas Completadas\n")
 		for _, c := range commits {
 			cleanSubject := c
 			if parts := strings.SplitN(c, " ", 2); len(parts) == 2 {

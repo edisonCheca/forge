@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var issueFlag string
+
 var commitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "Auto-generate a commit message based on staged changes",
@@ -90,8 +92,13 @@ var commitCmd = &cobra.Command{
 		aiAdapter := ai.NewOpenAIAdapter(apiKey, baseURL, model)
 		workflow := core.NewCommitWorkflow(gitAdapter, aiAdapter, cfg)
 
+		issueRef := strings.TrimSpace(issueFlag)
+		if issueRef != "" && !strings.HasPrefix(issueRef, "#") {
+			issueRef = "#" + issueRef
+		}
+
 		fmt.Println(styleAction("Analizando cambios en staging..."))
-		proposal, err := workflow.Execute(cmd.Context())
+		proposal, err := workflow.Execute(cmd.Context(), issueRef)
 		if err != nil {
 			if errors.Is(err, core.ErrNoStagedChanges) {
 				fmt.Println()
@@ -101,13 +108,32 @@ var commitCmd = &cobra.Command{
 			return fmt.Errorf("error al generar la propuesta de commit: %w", err)
 		}
 
+		finalSubject := proposal.Subject
+
 		fmt.Println()
 		printSeparator()
 		fmt.Println(styleTitle(fmt.Sprintf("Propuesta de Commit (%s)", proposal.ModelUsed)))
 		fmt.Println()
-		fmt.Println(ColorWhite + proposal.Subject + ColorReset)
+		fmt.Println(ColorWhite + finalSubject + ColorReset)
 		fmt.Println()
 		printSeparator()
+
+		if issueRef == "" {
+			fmt.Print(promptPrefix("¿Asociar a ID de Subtarea? [ej. 10, o Enter para omitir]: "))
+			stInput, _ := reader.ReadString('\n')
+			stTrimmed := strings.TrimSpace(stInput)
+			if stTrimmed != "" {
+				if !strings.HasPrefix(stTrimmed, "#") {
+					stTrimmed = "#" + stTrimmed
+				}
+				lines := strings.SplitN(finalSubject, "\n", 2)
+				lines[0] = strings.TrimSpace(lines[0]) + " (" + stTrimmed + ")"
+				finalSubject = strings.Join(lines, "\n")
+				fmt.Println(styleSuccess("Título actualizado: " + ColorWhite + lines[0] + ColorReset))
+				printSeparator()
+			}
+		}
+
 		fmt.Print(promptPrefix("¿Aceptar este commit? [Y/n]: "))
 
 		input, err := reader.ReadString('\n')
@@ -117,7 +143,7 @@ var commitCmd = &cobra.Command{
 
 		answer := strings.TrimSpace(input)
 		if answer == "" || strings.EqualFold(answer, "y") {
-			if err := gitAdapter.ExecuteCommit(cmd.Context(), proposal.Subject); err != nil {
+			if err := gitAdapter.ExecuteCommit(cmd.Context(), finalSubject); err != nil {
 				return fmt.Errorf("falló la confirmación en Git: %w", err)
 			}
 			fmt.Println()
@@ -132,5 +158,6 @@ var commitCmd = &cobra.Command{
 }
 
 func init() {
+	commitCmd.Flags().StringVarP(&issueFlag, "issue", "i", "", "ID de la subtarea o issue asociado (ej. 10 o #10)")
 	rootCmd.AddCommand(commitCmd)
 }

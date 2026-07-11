@@ -113,13 +113,31 @@ func (a *GitAdapter) GetBranchLog(ctx context.Context, baseBranch string) ([]str
 	return result, nil
 }
 
+// PushBranch sincroniza la rama activa con el remoto origin (`git push -u origin <branch>`).
+func (a *GitAdapter) PushBranch(ctx context.Context, branch string) error {
+	cmd := exec.CommandContext(ctx, "git", "push", "-u", "origin", branch)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("falló git push (%s): %w", strings.TrimSpace(string(out)), err)
+	}
+	return nil
+}
+
 // CreatePullRequest invoca a la herramienta CLI oficial de GitHub ('gh') para crear el PR.
 func (a *GitAdapter) CreatePullRequest(ctx context.Context, base, head, title, body string) (string, error) {
 	args := []string{"pr", "create", "--base", base, "--head", head, "--title", title, "--body", body}
 	cmd := exec.CommandContext(ctx, "gh", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), fmt.Errorf("gh pr create failed (%s): %w", strings.TrimSpace(string(out)), err)
+		// Si 'gh' no se encuentra en un entorno WSL, intentar llamar al binario de Windows 'gh.exe'
+		if errors.Is(err, exec.ErrNotFound) || strings.Contains(err.Error(), "executable file not found") {
+			cmdWin := exec.CommandContext(ctx, "gh.exe", args...)
+			if outWin, errWin := cmdWin.CombinedOutput(); errWin == nil {
+				return strings.TrimSpace(string(outWin)), nil
+			}
+			return "", fmt.Errorf("no se encontró GitHub CLI ('gh') instalado o en su $PATH.\n\nPara instalar en Ubuntu/Debian/WSL:\n  sudo apt update && sudo apt install gh\nO en Windows:\n  winget install --id GitHub.cli\n\nUna vez instalado, ejecute 'gh auth login' para vincular su cuenta.")
+		}
+		return string(out), fmt.Errorf("falló la ejecución de 'gh pr create': %s (%w)", strings.TrimSpace(string(out)), err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }

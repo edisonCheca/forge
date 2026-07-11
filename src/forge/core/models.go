@@ -24,11 +24,30 @@ type GenerateRequest struct {
 	Language           string
 	MaxLength          int
 	ConventionalCommit bool
+	IssueID            string
 }
 
 // CommitProposal representa la propuesta validada que el core devolverá al CLI.
 type CommitProposal struct {
 	Subject     string
+	Body        string
+	GeneratedAt time.Time
+	ModelUsed   string
+}
+
+// PRGenerateRequest encapsula el contexto de la rama y commits para generar un PR enriquecido por IA.
+type PRGenerateRequest struct {
+	Branch     string
+	BaseBranch string
+	CommitLogs []string
+	Language   string
+	StoryID    string
+	StoryCode  string
+}
+
+// PRProposal representa la propuesta de Pull Request generada por IA.
+type PRProposal struct {
+	Title       string
 	Body        string
 	GeneratedAt time.Time
 	ModelUsed   string
