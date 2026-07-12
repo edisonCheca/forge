@@ -37,12 +37,13 @@ type CommitProposal struct {
 
 // PRGenerateRequest encapsula el contexto de la rama y commits para generar un PR enriquecido por IA.
 type PRGenerateRequest struct {
-	Branch     string
-	BaseBranch string
-	CommitLogs []string
-	Language   string
-	StoryID    string
-	StoryCode  string
+	Branch       string
+	BaseBranch   string
+	CommitLogs   []string
+	Language     string
+	StoryID      string
+	StoryCode    string
+	ExtraContext string
 }
 
 // PRProposal representa la propuesta de Pull Request generada por IA.

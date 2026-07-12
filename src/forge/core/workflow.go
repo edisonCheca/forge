@@ -104,15 +104,16 @@ func NewPRWorkflow(git GitPort, ai AIPort, config ConfigPort) *PRWorkflow {
 }
 
 // Execute ejecuta la introspección de rama y consulta a la IA para sintetizar la descripción del PR.
-func (w *PRWorkflow) Execute(ctx context.Context, branch, baseBranch string, commitLogs []string) (*PRProposal, error) {
+func (w *PRWorkflow) Execute(ctx context.Context, branch, baseBranch string, commitLogs []string, extraContext string) (*PRProposal, error) {
 	storyID, storyCode := ExtractBranchInfo(branch)
 	req := &PRGenerateRequest{
-		Branch:     branch,
-		BaseBranch: baseBranch,
-		CommitLogs: commitLogs,
-		Language:   w.config.GetDefaultLanguage(),
-		StoryID:    storyID,
-		StoryCode:  storyCode,
+		Branch:       branch,
+		BaseBranch:   baseBranch,
+		CommitLogs:   commitLogs,
+		Language:     w.config.GetDefaultLanguage(),
+		StoryID:      storyID,
+		StoryCode:    storyCode,
+		ExtraContext: extraContext,
 	}
 
 	proposal, err := w.ai.GeneratePullRequest(ctx, req)

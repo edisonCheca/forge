@@ -208,10 +208,15 @@ func (a *OpenAIAdapter) GeneratePullRequest(ctx context.Context, req *core.PRGen
 		storyGuidance = fmt.Sprintf("\nDOMAIN RULE: The Pull Request always represents the User Story identified by the branch name (User Story ID: '%s', Code: '%s'). The issue tags found inside commit logs represent component subtasks. Therefore, the PR Title suffix and '## Historia de Usuario' MUST reference only the User Story ID from the branch ('%s').", req.StoryID, req.StoryCode, req.StoryID)
 	}
 
+	extraGuidance := ""
+	if req.ExtraContext != "" {
+		extraGuidance = "\n3. Context/Author Notes: Incorporate the provided 'Contexto Adicional / Notas del Autor' naturally within the Pull Request body (e.g., in 'Resumen Ejecutivo' or in a new section 'Decisiones de Diseño')."
+	}
+
 	systemPrompt := fmt.Sprintf(`You are a Senior Lead Software Engineer generating a professional GitHub Pull Request proposal.
 Output strictly a JSON object with two keys: "title" and "body". Do not include extra wrappers or text outside JSON.
 Language requirement: write the entire body in '%s'.
-CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean, professional, minimal, CLI-native tone.%s
+CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean, professional, minimal, CLI-native tone.%s%s
 1. Title: Must follow Conventional Commits format (e.g., '%s').
 2. Body format:
 ## Historia de Usuario
@@ -224,9 +229,12 @@ CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean,
 (Bulleted list summarizing the commits. Extract any subtask issue tags like (#10) and format clearly without emojis)
 
 ## Plan de Verificación
-(Brief bulleted list of verification steps or unit tests executed)`, req.Language, storyGuidance, titleExample, closesText)
+(Brief bulleted list of verification steps or unit tests executed)`, req.Language, storyGuidance, extraGuidance, titleExample, closesText)
 
 	userPrompt := fmt.Sprintf("Branch Name: %s\nTarget Base Branch: %s\n\nCommit History:\n%s", req.Branch, req.BaseBranch, strings.Join(req.CommitLogs, "\n"))
+	if req.ExtraContext != "" {
+		userPrompt += fmt.Sprintf("\n\nContexto Adicional / Notas del Autor:\n%s", req.ExtraContext)
+	}
 
 	payload := chatRequest{
 		Model: a.model,

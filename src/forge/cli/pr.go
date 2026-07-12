@@ -15,6 +15,7 @@ import (
 )
 
 var baseBranchFlag string
+var extraContextFlag string
 
 var prCmd = &cobra.Command{
 	Use:     "pr",
@@ -48,7 +49,7 @@ var prCmd = &cobra.Command{
 			fmt.Println(styleAction("Sintetizando resumen ejecutivo del PR con Inteligencia Artificial..."))
 			aiAdapter := ai.NewOpenAIAdapter(cfg.GetAIApiKey(), cfg.GetAIBaseURL(), cfg.GetSelectedAIModel())
 			prWorkflow := core.NewPRWorkflow(gitAdapter, aiAdapter, cfg)
-			if proposal, errAI := prWorkflow.Execute(cmd.Context(), head, baseBranchFlag, commits); errAI == nil && proposal != nil {
+			if proposal, errAI := prWorkflow.Execute(cmd.Context(), head, baseBranchFlag, commits, extraContextFlag); errAI == nil && proposal != nil {
 				title = proposal.Title
 				body = proposal.Body
 			}
@@ -56,6 +57,9 @@ var prCmd = &cobra.Command{
 
 		if title == "" || body == "" {
 			title, body = buildPRProposal(head, commits)
+			if extraContextFlag != "" {
+				body += "\n\n## Notas de Diseño / Decisiones\n- " + extraContextFlag
+			}
 		}
 
 		printSeparator()
@@ -99,6 +103,7 @@ var prCmd = &cobra.Command{
 
 func init() {
 	prCmd.Flags().StringVarP(&baseBranchFlag, "base", "b", "develop", "Rama base destino para el Pull Request")
+	prCmd.Flags().StringVarP(&extraContextFlag, "extra", "e", "", "Notas o contexto adicional sobre las decisiones y cambios realizados")
 	rootCmd.AddCommand(prCmd)
 }
 
