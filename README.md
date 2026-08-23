@@ -4,24 +4,29 @@
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Status](https://img.shields.io/badge/Status-Phase_1_Active-success)
 
-**Forge** es un asistente de ingeniería de software inteligente de interfaz de línea de comandos (CLI) diseñado para agilizar tu flujo de desarrollo local. En su primera fase, Forge analiza de manera inteligente los cambios en el *staging area* de Git y genera mensajes de commit precisos, descriptivos y con formato perfecto.
+**Forge** es un asistente de ingeniería de software inteligente de interfaz de línea de comandos (CLI) diseñado para agilizar tu flujo de desarrollo local. Forge analiza de manera inteligente los cambios en tu entorno de trabajo de Git para generar mensajes de commit precisos bajo estándares de la industria y automatizar la creación de Pull Requests ejecutivos listos para producción.
 
 ---
 
-## Características (Fase 1)
+## Características Principales
 
 - **Conventional Commits Estrictos**: Genera mensajes que cumplen a cabalidad con el estándar Conventional Commits (`feat(auth): ...`), garantizando compatibilidad total con linters estrictos como `commitlint` y herramientas de automatización de versiones.
-- **Agnóstico al Proveedor de IA**: No estás atado a un solo proveedor. Configura y utiliza cualquier API compatible con OpenAI, incluyendo **OpenRouter**, **OpenAI**, **Groq**, **Anthropic** (vía gateways) o modelos ejecutados localmente (como Ollama o LM Studio).
-- **Asistente Interactivo (Wizard)**: Olvídate de configurar variables de entorno complejas a mano. Al ejecutar Forge por primera vez, un asistente guiado te ayudará a configurar tu proveedor, modelo e idioma favorito, guardando todo de forma segura en `~/.forge.json` (con permisos protegidos `0600`).
-- **Soporte Multilenguaje Nativo**: Genera propuestas de commit directamente en tu idioma local (**Español**, Inglés, etc.) con formato conciso y viñetas cortas que respetan el límite de 80 caracteres por línea.
-- **Human-in-the-Loop Estricto**: La IA propone, pero tú siempre tienes el control final. Revisa la propuesta generada y acéptala con un simple `Enter` o cáncelala instantáneamente.
+- **Creación Inteligente de Pull Requests (`forge pr`)**: Sintetiza el historial de commits de tu rama contra la rama base, estructurando historias de usuario, subtareas resueltas y notas de diseño, publicando directamente en GitHub mediante la integración con GitHub CLI (`gh`).
+- **Trazabilidad de Tareas e Issues (`--issue`)**: Vincula identificadores de tareas o subtareas (ej. `#10`, `PROJ-123`) a tus commits y PRs para mantener trazabilidad con gestores como Jira o GitHub Issues.
+- **Agnóstico al Proveedor de IA**: Compatible con cualquier API basada en OpenAI, incluyendo **OpenRouter**, **OpenAI**, **Groq**, **Anthropic** (vía gateways) o modelos ejecutados localmente (**Ollama**, **LM Studio**).
+- **Asistente Interactivo (Wizard)**: Configuración guiada en la primera ejecución que almacena tus preferencias de forma segura en `~/.forge.json` (con permisos protegidos `0600`).
+- **Terminal UI Moderna y Elegante**: Mensajes estilizados con colores TrueColor ANSI, íconos descriptivos y banners informativos.
+- **Soporte Multilenguaje Nativo**: Genera propuestas de commit y PRs en tu idioma preferido (**Español**, Inglés, etc.).
+- **Human-in-the-Loop Estricto**: Tú siempre tienes el control final. Revisa la propuesta generada y confírmala interactivamente con un simple `Enter` o cancélala en cualquier momento.
 
 ---
 
 ## Instalación
 
 ### Prerrequisitos
-Asegúrate de tener [Go](https://go.dev/doc/install) instalado en tu sistema (versión 1.21 o superior).
+- [Go](https://go.dev/doc/install) (versión 1.21 o superior).
+- [Git](https://git-scm.com/) configurado en el sistema.
+- [GitHub CLI (`gh`)](https://cli.github.com/) *(opcional, necesario para `forge pr`)* autenticado con `gh auth login`.
 
 ### Instalación desde el código fuente
 
@@ -47,24 +52,32 @@ go install github.com/edisonCheca/forge@latest
 
 ## Uso
 
-El flujo de trabajo es extremadamente rápido y natural:
+### 1. Generador Inteligente de Commits (`forge commit`)
 
-1. **Prepara tus cambios en Git** sumando los archivos que deseas incluir en tu próximo commit:
+1. **Prepara tus cambios en el staging area de Git**:
    ```bash
    git add .
    ```
 
-2. **Ejecuta el generador inteligente de commits**:
+2. **Ejecuta Forge Commit**:
    ```bash
    forge commit
    ```
 
-Si es tu primera vez ejecutando el comando, el **Wizard interactivo** te solicitará los datos de configuración básica. Tras la configuración (o en ejecuciones posteriores), Forge analizará el diff y te presentará una propuesta lista para confirmar:
+   *(Opcional) Puedes asociar directamente un ID de issue o subtarea*:
+   ```bash
+   forge commit --issue 10
+   # o usando el alias corto:
+   forge commit -i 10
+   ```
 
+#### Ejemplo de Salida:
 ```text
-Analizando cambios en staging...
+→ Analizando cambios en staging...
 
-Propuesta de Commit:
+============================================================
+  Propuesta de Commit (openrouter/free)
+============================================================
 
 feat(cli): integrar wizard interactivo de configuración y soporte en español
 
@@ -72,9 +85,83 @@ feat(cli): integrar wizard interactivo de configuración y soporte en español
 - implementar selección automática de idioma por defecto
 - reestructurar adaptador http para dar soporte agnóstico a openrouter
 
-¿Aceptar este commit? [Y/n]: Y
-Commit creado exitosamente.
+============================================================
+? ¿Aceptar este commit? [Y/n]: Y
+
+✔ Commit creado exitosamente
 ```
+
+---
+
+### 2. Creación Automatizada de Pull Requests (`forge pr`)
+
+Forge analiza automáticamente los commits realizados en tu rama actual frente a la rama base, sintetiza un resumen ejecutivo con IA y crea el Pull Request en GitHub:
+
+1. **Ejecuta el comando desde tu rama de funcionalidad**:
+   ```bash
+   forge pr
+   ```
+
+2. **Opciones disponibles**:
+   - `--base` / `-b`: Especifica la rama base destino *(por defecto: `develop`)*.
+   - `--extra` / `-e`: Agrega contexto adicional, notas técnicas o decisiones de arquitectura al PR.
+
+   ```bash
+   forge pr --base main --extra "Se optimizó el adaptador HTTP con reintentos exponenciales."
+   ```
+
+#### Ejemplo de Salida:
+```text
+→ Analizando commits en la rama 'feature/10-auth-flow'...
+→ Sintetizando resumen ejecutivo del PR con Inteligencia Artificial...
+
+============================================================
+  Propuesta de Pull Request:
+============================================================
+Título: feat(auth): implementar flujo de autenticación JWT (#10)
+Base:   main <- feature/10-auth-flow
+
+Cuerpo:
+## Historia de Usuario
+Closes #10
+
+## Subtareas Completadas
+- Resolves #11
+- Resolves #12
+
+## Notas de Diseño / Decisiones
+Se optimizó el adaptador HTTP con reintentos exponenciales.
+============================================================
+
+? ¿Crear este Pull Request en GitHub? [Y/n]: Y
+
+→ Sincronizando rama 'feature/10-auth-flow' con origin...
+→ Invocando GitHub CLI (gh pr create)...
+
+✔ Pull Request creado exitosamente: https://github.com/edisonCheca/forge/pull/15
+```
+
+---
+
+## Configuración
+
+Forge guarda su configuración en el archivo `~/.forge.json`. Puedes editarlo directamente o dejar que el wizard interactivo lo genere al ejecutar `forge commit` por primera vez:
+
+```json
+{
+  "base_url": "https://openrouter.ai/api/v1/chat/completions",
+  "model": "openrouter/free",
+  "api_key": "sk-or-v1-...",
+  "language": "es"
+}
+```
+
+### Variables de Entorno (Opcional)
+También puedes sobreescribir la configuración usando variables de entorno:
+- `FORGE_AI_BASE_URL`: URL del endpoint compatible con OpenAI.
+- `FORGE_MODEL`: Modelo a utilizar (ej. `openrouter/free`, `openai/gpt-4o-mini`).
+- `FORGE_LANGUAGE`: Idioma de generación (`es`, `en`, etc.).
+- `FORGE_CONVENTIONAL`: `true` o `false` para exigir Conventional Commits.
 
 ---
 
