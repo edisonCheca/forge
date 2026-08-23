@@ -74,10 +74,12 @@ func (a *OpenAIAdapter) GenerateCommit(ctx context.Context, req *core.GenerateRe
 		return nil, fmt.Errorf("generate request or repository context is nil")
 	}
 
+	langName := resolveLanguageName(req.Language)
+
 	// Construcción estricta del System Prompt
 	var systemPromptBuilder strings.Builder
 	systemPromptBuilder.WriteString("You are an expert software engineer generating a git commit message. ")
-	systemPromptBuilder.WriteString(fmt.Sprintf("Output the entire commit message exclusively in the language: '%s'. ", req.Language))
+	systemPromptBuilder.WriteString(fmt.Sprintf("CRITICAL LANGUAGE REQUIREMENT: You MUST write the ENTIRE commit message (both the subject line and body bullet points) exclusively in %s. Under NO circumstances output in English unless English is requested. ", langName))
 
 	if req.ConventionalCommit {
 		maxLen := req.MaxLength
@@ -104,7 +106,7 @@ func (a *OpenAIAdapter) GenerateCommit(ctx context.Context, req *core.GenerateRe
 	systemPromptBuilder.WriteString("3. If developer notes contradict the empirical diff, ALWAYS prioritize the diff evidence for the technical scope and subject, using the note only where reconcilable. ")
 	systemPromptBuilder.WriteString("4. NEVER use vague filler language like 'update code' or 'various fixes'. Always be concrete and specific based on the actual modified code. ")
 
-	systemPromptBuilder.WriteString("Do not include markdown formatting, backticks, or explanatory filler text. Just output the clean commit message.")
+	systemPromptBuilder.WriteString(fmt.Sprintf("Do not include markdown formatting, backticks, or explanatory filler text. Output the clean commit message strictly in %s.", langName))
 
 	userPrompt := fmt.Sprintf("Here is the git diff of the staged changes:\n\n%s", req.Context.RawDiff)
 	if req.ExtraContext != "" {
@@ -224,9 +226,11 @@ func (a *OpenAIAdapter) GeneratePullRequest(ctx context.Context, req *core.PRGen
 		extraGuidance = "\n3. Context/Author Notes: Incorporate the provided 'Contexto Adicional / Notas del Autor' naturally within the Pull Request body (e.g., in 'Resumen Ejecutivo' or in a new section 'Decisiones de Diseño'). If notes contradict the commit history, strictly prioritize the empirical commit history for the technical summary."
 	}
 
+	langName := resolveLanguageName(req.Language)
+
 	systemPrompt := fmt.Sprintf(`You are a Senior Lead Software Engineer generating a professional GitHub Pull Request proposal.
 Output strictly a JSON object with two keys: "title" and "body". Do not include extra wrappers or text outside JSON.
-Language requirement: write the entire body in '%s'.
+CRITICAL LANGUAGE REQUIREMENT: The entire PR title and body MUST be written strictly in %s. Do NOT write in English unless %s is explicitly English.
 CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean, professional, minimal, CLI-native tone.%s%s
 1. Title: Must follow Conventional Commits format (e.g., '%s').
 2. Body format:
@@ -240,7 +244,7 @@ CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean,
 (Bulleted list summarizing the commits. Extract any subtask issue tags like (#10) and format clearly without emojis)
 
 ## Plan de Verificación
-(Brief bulleted list of verification steps or unit tests executed)`, req.Language, storyGuidance, extraGuidance, titleExample, closesText)
+(Brief bulleted list of verification steps or unit tests executed)`, langName, langName, storyGuidance, extraGuidance, titleExample, closesText)
 
 	userPrompt := fmt.Sprintf("Branch Name: %s\nTarget Base Branch: %s\n\nCommit History:\n%s", req.Branch, req.BaseBranch, strings.Join(req.CommitLogs, "\n"))
 	if req.ExtraContext != "" {
@@ -360,4 +364,27 @@ CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean,
 	}
 
 	return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+}
+
+// resolveLanguageName mapea códigos de idioma cortos a nombres descriptivos para los prompts de IA.
+func resolveLanguageName(lang string) string {
+	switch strings.ToLower(strings.TrimSpace(lang)) {
+	case "es", "spanish", "español", "es-es", "es-la":
+		return "Spanish (Español)"
+	case "en", "english", "inglés", "en-us", "en-gb":
+		return "English"
+	case "pt", "portuguese", "português":
+		return "Portuguese (Português)"
+	case "fr", "french", "français":
+		return "French (Français)"
+	case "de", "german", "deutsch":
+		return "German (Deutsch)"
+	case "it", "italian", "italiano":
+		return "Italian (Italiano)"
+	default:
+		if lang == "" {
+			return "Spanish (Español)"
+		}
+		return lang
+	}
 }
