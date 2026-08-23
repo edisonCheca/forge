@@ -99,6 +99,9 @@ func (a *OpenAIAdapter) GenerateCommit(ctx context.Context, req *core.GenerateRe
 	systemPromptBuilder.WriteString("Do not include markdown formatting, backticks, or explanatory filler text. Just output the clean commit message.")
 
 	userPrompt := fmt.Sprintf("Here is the git diff of the staged changes:\n\n%s", req.Context.RawDiff)
+	if req.ExtraContext != "" {
+		userPrompt += fmt.Sprintf("\n\nAdditional developer notes / context to consider:\n%s", req.ExtraContext)
+	}
 
 	payload := chatRequest{
 		Model: a.model,

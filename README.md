@@ -64,11 +64,14 @@ go install github.com/edisonCheca/forge@latest
    forge commit
    ```
 
-   *(Opcional) Puedes asociar directamente un ID de issue o subtarea*:
+   *(Opciones disponibles)*:
+   - `--issue` / `-i`: Asocia un ID de issue o subtarea (ej. `10` o `#10`).
+   - `--extra` / `-e`: Pasa notas técnicas o contexto de intención directamente al prompt de la IA para enriquecer el análisis del diff al generar el commit.
+
    ```bash
-   forge commit --issue 10
-   # o usando el alias corto:
-   forge commit -i 10
+   forge commit --issue 10 --extra "Refactorización del cliente HTTP para soporte de reintentos"
+   # o con alias cortos:
+   forge commit -i 10 -e "Refactorización del cliente HTTP para soporte de reintentos"
    ```
 
 #### Ejemplo de Salida:
@@ -104,7 +107,7 @@ Forge analiza automáticamente los commits realizados en tu rama actual frente a
 
 2. **Opciones disponibles**:
    - `--base` / `-b`: Especifica la rama base destino *(por defecto: `develop`)*.
-   - `--extra` / `-e`: Agrega contexto adicional, notas técnicas o decisiones de arquitectura al PR.
+   - `--extra` / `-e`: Proporciona notas técnicas o decisiones de arquitectura para que la IA las integre orgánicamente en el resumen y cuerpo del PR.
 
    ```bash
    forge pr --base main --extra "Se optimizó el adaptador HTTP con reintentos exponenciales."

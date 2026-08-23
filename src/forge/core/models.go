@@ -25,6 +25,7 @@ type GenerateRequest struct {
 	MaxLength          int
 	ConventionalCommit bool
 	IssueID            string
+	ExtraContext       string
 }
 
 // CommitProposal representa la propuesta validada que el core devolverá al CLI.

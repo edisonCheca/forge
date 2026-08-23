@@ -15,6 +15,7 @@ import (
 )
 
 var issueFlag string
+var commitExtraFlag string
 
 var commitCmd = &cobra.Command{
 	Use:   "commit",
@@ -98,7 +99,7 @@ var commitCmd = &cobra.Command{
 		}
 
 		fmt.Println(styleAction("Analizando cambios en staging..."))
-		proposal, err := workflow.Execute(cmd.Context(), issueRef)
+		proposal, err := workflow.Execute(cmd.Context(), issueRef, commitExtraFlag)
 		if err != nil {
 			if errors.Is(err, core.ErrNoStagedChanges) {
 				fmt.Println()
@@ -159,5 +160,6 @@ var commitCmd = &cobra.Command{
 
 func init() {
 	commitCmd.Flags().StringVarP(&issueFlag, "issue", "i", "", "ID de la subtarea o issue asociado (ej. 10 o #10)")
+	commitCmd.Flags().StringVarP(&commitExtraFlag, "extra", "e", "", "Notas o contexto adicional sobre las decisiones y cambios realizados")
 	rootCmd.AddCommand(commitCmd)
 }
