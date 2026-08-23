@@ -57,9 +57,10 @@ var prCmd = &cobra.Command{
 
 		if title == "" || body == "" {
 			title, body = buildPRProposal(head, commits)
-			if extraContextFlag != "" {
-				body += "\n\n## Notas de Diseño / Decisiones\n- " + extraContextFlag
-			}
+		}
+
+		if extraContextFlag != "" {
+			body += "\n\n## Notas de Diseño / Decisiones\n" + extraContextFlag
 		}
 
 		printSeparator()
