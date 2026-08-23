@@ -106,6 +106,16 @@ func (a *OpenAIAdapter) GenerateCommit(ctx context.Context, req *core.GenerateRe
 	systemPromptBuilder.WriteString("3. If developer notes contradict the empirical diff, ALWAYS prioritize the diff evidence for the technical scope and subject, using the note only where reconcilable. ")
 	systemPromptBuilder.WriteString("4. NEVER use vague filler language like 'update code' or 'various fixes'. Always be concrete and specific based on the actual modified code. ")
 
+	// Control de verbosidad (Automático Proporcional vs Override Manual por Flag)
+	switch strings.ToLower(strings.TrimSpace(req.Verbosity)) {
+	case "concise":
+		systemPromptBuilder.WriteString("VERBOSITY OVERRIDE (CONCISE MODE): The developer explicitly requested a concise commit. Output the subject line and EXACTLY 1 or 2 very short bullet points in the body. Do not exceed 2 bullets. ")
+	case "detailed":
+		systemPromptBuilder.WriteString("VERBOSITY OVERRIDE (DETAILED MODE): The developer explicitly requested a detailed commit. Provide a thorough, comprehensive breakdown of changes with 4 to 7 bullet points grouped by component or file. ")
+	default:
+		systemPromptBuilder.WriteString("DYNAMIC PROPORTIONALITY (BALANCED MODE): Auto-adapt the body length to the size of the diff. If 1-2 files changed, output exactly 2 concise bullets. If 3-6 files changed, output 3-4 bullets. If 7+ files changed, summarize into 4-5 high-level component bullets. ")
+	}
+
 	systemPromptBuilder.WriteString(fmt.Sprintf("Do not include markdown formatting, backticks, or explanatory filler text. Output the clean commit message strictly in %s.", langName))
 
 	userPrompt := fmt.Sprintf("Here is the git diff of the staged changes:\n\n%s", req.Context.RawDiff)

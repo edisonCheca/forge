@@ -67,11 +67,19 @@ go install github.com/edisonCheca/forge@latest
    *(Opciones disponibles)*:
    - `--issue` / `-i`: Asocia un ID de issue o subtarea (ej. `10` o `#10`).
    - `--extra` / `-e`: Pasa notas técnicas o contexto de intención directamente al prompt de la IA para enriquecer el análisis del diff al generar el commit.
+   - `--concise`: Genera una propuesta de commit ultra concisa (máximo 1-2 viñetas breves).
+   - `--detailed`: Genera una propuesta de commit exhaustiva y detallada (4-7 viñetas estructuradas).
 
    ```bash
-   forge commit --issue 10 --extra "Refactorización del cliente HTTP para soporte de reintentos"
-   # o con alias cortos:
+   # Flujo estándar automático (proporcional al diff):
+   forge commit
+
+   # Con contexto y subtarea:
    forge commit -i 10 -e "Refactorización del cliente HTTP para soporte de reintentos"
+
+   # Forzando modo conciso o detallado:
+   forge commit --concise
+   forge commit --detailed
    ```
 
 #### Ejemplo de Salida:

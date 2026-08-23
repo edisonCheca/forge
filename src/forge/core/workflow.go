@@ -52,7 +52,7 @@ func NewCommitWorkflow(git GitPort, ai AIPort, config ConfigPort) *CommitWorkflo
 }
 
 // Execute ejecuta el flujo completo de introspección, construcción de contexto y consulta a la IA.
-func (w *CommitWorkflow) Execute(ctx context.Context, issueID, extraContext string) (*CommitProposal, error) {
+func (w *CommitWorkflow) Execute(ctx context.Context, issueID, extraContext, verbosity string) (*CommitProposal, error) {
 	// Paso A: Verificar si hay cambios preparados en staging
 	hasChanges, err := w.git.HasStagedChanges(ctx)
 	if err != nil {
@@ -76,6 +76,7 @@ func (w *CommitWorkflow) Execute(ctx context.Context, issueID, extraContext stri
 		ConventionalCommit: w.config.RequireConventionalCommits(),
 		IssueID:            issueID,
 		ExtraContext:       extraContext,
+		Verbosity:          verbosity,
 	}
 
 	// Paso D: Consultar al proveedor de Inteligencia Artificial

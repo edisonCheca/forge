@@ -16,6 +16,8 @@ import (
 
 var issueFlag string
 var commitExtraFlag string
+var conciseFlag bool
+var detailedFlag bool
 
 var commitCmd = &cobra.Command{
 	Use:   "commit",
@@ -89,6 +91,17 @@ var commitCmd = &cobra.Command{
 			fmt.Println()
 		}
 
+		if conciseFlag && detailedFlag {
+			return fmt.Errorf("no se puede especificar --concise y --detailed simultáneamente")
+		}
+
+		verbosity := "balanced"
+		if conciseFlag {
+			verbosity = "concise"
+		} else if detailedFlag {
+			verbosity = "detailed"
+		}
+
 		gitAdapter := git.NewGitAdapter()
 		aiAdapter := ai.NewOpenAIAdapter(apiKey, baseURL, model)
 		workflow := core.NewCommitWorkflow(gitAdapter, aiAdapter, cfg)
@@ -99,7 +112,7 @@ var commitCmd = &cobra.Command{
 		}
 
 		fmt.Println(styleAction("Analizando cambios en staging..."))
-		proposal, err := workflow.Execute(cmd.Context(), issueRef, commitExtraFlag)
+		proposal, err := workflow.Execute(cmd.Context(), issueRef, commitExtraFlag, verbosity)
 		if err != nil {
 			if errors.Is(err, core.ErrNoStagedChanges) {
 				fmt.Println()
@@ -161,5 +174,7 @@ var commitCmd = &cobra.Command{
 func init() {
 	commitCmd.Flags().StringVarP(&issueFlag, "issue", "i", "", "ID de la subtarea o issue asociado (ej. 10 o #10)")
 	commitCmd.Flags().StringVarP(&commitExtraFlag, "extra", "e", "", "Notas o contexto adicional sobre las decisiones y cambios realizados")
+	commitCmd.Flags().BoolVar(&conciseFlag, "concise", false, "Generar propuesta de commit concisa (1-2 viñetas breves)")
+	commitCmd.Flags().BoolVar(&detailedFlag, "detailed", false, "Generar propuesta de commit detallada y exhaustiva (4-7 viñetas)")
 	rootCmd.AddCommand(commitCmd)
 }
