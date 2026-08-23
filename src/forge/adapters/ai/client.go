@@ -96,6 +96,14 @@ func (a *OpenAIAdapter) GenerateCommit(ctx context.Context, req *core.GenerateRe
 	if req.IssueID != "" {
 		systemPromptBuilder.WriteString(fmt.Sprintf("CRITICAL: You MUST include the issue reference '%s' at the very end of the subject line (e.g., 'feat(scope): subject %s'). ", req.IssueID, req.IssueID))
 	}
+
+	// Jerarquía de verdad y resolución de contradicciones
+	systemPromptBuilder.WriteString("HIERARCHY OF TRUTH & CONFLICT RESOLUTION: ")
+	systemPromptBuilder.WriteString("1. The Git diff is the absolute empirical ground truth. Never hallucinate changes, files, or actions not supported by the diff. ")
+	systemPromptBuilder.WriteString("2. Developer notes provide intent, rationale, and business context (the 'why'). ")
+	systemPromptBuilder.WriteString("3. If developer notes contradict the empirical diff, ALWAYS prioritize the diff evidence for the technical scope and subject, using the note only where reconcilable. ")
+	systemPromptBuilder.WriteString("4. NEVER use vague filler language like 'update code' or 'various fixes'. Always be concrete and specific based on the actual modified code. ")
+
 	systemPromptBuilder.WriteString("Do not include markdown formatting, backticks, or explanatory filler text. Just output the clean commit message.")
 
 	userPrompt := fmt.Sprintf("Here is the git diff of the staged changes:\n\n%s", req.Context.RawDiff)
@@ -213,7 +221,7 @@ func (a *OpenAIAdapter) GeneratePullRequest(ctx context.Context, req *core.PRGen
 
 	extraGuidance := ""
 	if req.ExtraContext != "" {
-		extraGuidance = "\n3. Context/Author Notes: Incorporate the provided 'Contexto Adicional / Notas del Autor' naturally within the Pull Request body (e.g., in 'Resumen Ejecutivo' or in a new section 'Decisiones de Diseño')."
+		extraGuidance = "\n3. Context/Author Notes: Incorporate the provided 'Contexto Adicional / Notas del Autor' naturally within the Pull Request body (e.g., in 'Resumen Ejecutivo' or in a new section 'Decisiones de Diseño'). If notes contradict the commit history, strictly prioritize the empirical commit history for the technical summary."
 	}
 
 	systemPrompt := fmt.Sprintf(`You are a Senior Lead Software Engineer generating a professional GitHub Pull Request proposal.
