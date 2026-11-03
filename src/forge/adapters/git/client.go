@@ -142,3 +142,19 @@ func (a *GitAdapter) CreatePullRequest(ctx context.Context, base, head, title, b
 	return strings.TrimSpace(string(out)), nil
 }
 
+// CreateBranch crea una nueva rama y se cambia a ella (`git checkout -b <branchName> [baseBranch]`).
+func (a *GitAdapter) CreateBranch(ctx context.Context, branchName, baseBranch string) error {
+	var cmd *exec.Cmd
+	if baseBranch != "" {
+		cmd = exec.CommandContext(ctx, "git", "checkout", "-b", branchName, baseBranch)
+	} else {
+		cmd = exec.CommandContext(ctx, "git", "checkout", "-b", branchName)
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("falló la creación de la rama '%s': %s (%w)", branchName, strings.TrimSpace(string(out)), err)
+	}
+	return nil
+}
+
+
