@@ -15,12 +15,15 @@ type GitPort interface {
 	CreatePullRequest(ctx context.Context, base, head, title, body string) (string, error)
 	CreateBranch(ctx context.Context, branchName, baseBranch string) error
 	GetIssueDetails(ctx context.Context, issueID string) (*IssueInfo, error)
+	GetBranchDiff(ctx context.Context, baseBranch string) (string, error)
+	GetStagedDiff(ctx context.Context) (string, error)
 }
 
 // AIPort define el contrato para la comunicación con proveedores de Inteligencia Artificial.
 type AIPort interface {
 	GenerateCommit(ctx context.Context, req *GenerateRequest) (*CommitProposal, error)
 	GeneratePullRequest(ctx context.Context, req *PRGenerateRequest) (*PRProposal, error)
+	ReviewCode(ctx context.Context, req *ReviewRequest) (string, error)
 }
 
 // ConfigPort define el contrato para obtener las reglas y convenciones activas.
@@ -30,4 +33,5 @@ type ConfigPort interface {
 	GetMaxSubjectLength() int
 	GetSelectedAIModel() string
 	GetAIBaseURL() string
+	GetAIApiKey() string
 }

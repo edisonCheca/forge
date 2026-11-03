@@ -185,5 +185,37 @@ func (a *GitAdapter) GetIssueDetails(ctx context.Context, issueID string) (*core
 	return &info, nil
 }
 
+// GetStagedDiff obtiene el diff completo de los archivos preparados en staging.
+func (a *GitAdapter) GetStagedDiff(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "diff", "--cached")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("falló al obtener diff de staging: %w", err)
+	}
+	return string(out), nil
+}
+
+// GetBranchDiff obtiene el diff acumulado entre la rama base y la rama activa.
+func (a *GitAdapter) GetBranchDiff(ctx context.Context, baseBranch string) (string, error) {
+	if baseBranch == "" {
+		baseBranch = "develop"
+	}
+	cmd := exec.CommandContext(ctx, "git", "diff", fmt.Sprintf("%s...HEAD", baseBranch))
+	out, err := cmd.Output()
+	if err != nil {
+		if baseBranch == "develop" {
+			for _, fb := range []string{"main", "master"} {
+				cmdFallback := exec.CommandContext(ctx, "git", "diff", fmt.Sprintf("%s...HEAD", fb))
+				if outFallback, errFallback := cmdFallback.Output(); errFallback == nil {
+					return string(outFallback), nil
+				}
+			}
+		}
+		return "", fmt.Errorf("falló al obtener diff contra la rama '%s': %w", baseBranch, err)
+	}
+	return string(out), nil
+}
+
+
 
 
