@@ -55,10 +55,13 @@ go install github.com/edisonCheca/forge@latest
 
 ### 1. Creación Estandarizada de Ramas (`forge start`)
 
-Inicia el desarrollo de una nueva Historia de Usuario o incidencia creando una rama con la convención óptima:
+Inicia el desarrollo de una nueva Historia de Usuario o incidencia creando una rama con la convención óptima. Forge se conecta con GitHub para resolver el título y las etiquetas del issue automáticamente:
 
 ```bash
-# Modo rápido con argumentos:
+# Modo Ultra Rápido (Consulta automática del Issue en GitHub):
+forge start 5
+
+# Modo con argumentos explícitos:
 forge start 5 "Control de Acceso RBAC" --hu HU-01 --type feat
 
 # Modo interactivo guiado:
@@ -66,21 +69,24 @@ forge start
 ```
 
 *(Opciones disponibles)*:
-- `--type` / `-t`: Tipo de cambio (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`). Por defecto: `feat`.
+- `--type` / `-t`: Tipo de cambio (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`). Por defecto: `feat` o el inferido del issue.
 - `--hu` / `-u`: Código opcional de la Historia de Usuario (ej. `HU-01` o `1`).
 - `--base` / `-b`: Rama base origen (por defecto: rama actual).
 
-#### Ejemplo de Salida:
+#### Ejemplo de Salida (Modo Ultra Rápido con Issue):
 ```text
+→ Consultando detalles del Issue #5 en GitHub...
+✓ Issue #5 encontrado: "[HU-01] Control de Acceso Basado en Roles (RBAC)"
+
 ─────────────────────────────────────────────────────────────────
 ◆ Propuesta de Nueva Rama:
 ─────────────────────────────────────────────────────────────────
-Rama: feat/5-hu-01-control-de-acceso-rbac
+Rama: feat/5-hu-01-control-de-acceso-basado-en-roles-rbac
 Base: main
 ─────────────────────────────────────────────────────────────────
 » ¿Crear y cambiar a esta rama? [Y/n]: Y
 
-✓ Rama 'feat/5-hu-01-control-de-acceso-rbac' creada y activada exitosamente.
+✓ Rama 'feat/5-hu-01-control-de-acceso-basado-en-roles-rbac' creada y activada exitosamente.
 ℹ Flujo sugerido: realiza tus cambios, ejecuta 'forge commit -i 5' y al finalizar 'forge pr'.
 ```
 

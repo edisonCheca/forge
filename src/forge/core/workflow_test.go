@@ -67,3 +67,36 @@ func TestExtractBranchInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestParseIssueForBranch(t *testing.T) {
+	issue1 := &core.IssueInfo{
+		Number: 5,
+		Title:  "[HU-01] Control de Acceso Basado en Roles (RBAC)",
+		Labels: []core.IssueLabel{},
+	}
+	tType, tHU, tDesc := core.ParseIssueForBranch(issue1)
+	if tType != "feat" || tHU != "HU-01" || tDesc != "Control de Acceso Basado en Roles (RBAC)" {
+		t.Errorf("ParseIssueForBranch(issue1) = (%q, %q, %q); want (feat, HU-01, Control de Acceso Basado en Roles (RBAC))", tType, tHU, tDesc)
+	}
+
+	issue2 := &core.IssueInfo{
+		Number: 12,
+		Title:  "docs: actualizar guía de instalación",
+		Labels: []core.IssueLabel{{Name: "documentation"}},
+	}
+	tType, tHU, tDesc = core.ParseIssueForBranch(issue2)
+	if tType != "docs" || tHU != "" || tDesc != "actualizar guía de instalación" {
+		t.Errorf("ParseIssueForBranch(issue2) = (%q, %q, %q); want (docs, \"\", actualizar guía de instalación)", tType, tHU, tDesc)
+	}
+
+	issue3 := &core.IssueInfo{
+		Number: 8,
+		Title:  "[FIX] Error de autenticación en JWT",
+		Labels: []core.IssueLabel{{Name: "bug"}},
+	}
+	tType, tHU, tDesc = core.ParseIssueForBranch(issue3)
+	if tType != "fix" || tDesc != "Error de autenticación en JWT" {
+		t.Errorf("ParseIssueForBranch(issue3) = (%q, %q, %q); want (fix, \"\", Error de autenticación en JWT)", tType, tHU, tDesc)
+	}
+}
+
