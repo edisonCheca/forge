@@ -14,6 +14,7 @@ type GitPort interface {
 	PushBranch(ctx context.Context, branch string) error
 	CreatePullRequest(ctx context.Context, base, head, title, body string) (string, error)
 	CreateBranch(ctx context.Context, branchName, baseBranch string) error
+	GetIssueDetails(ctx context.Context, issueID string) (*IssueInfo, error)
 }
 
 // AIPort define el contrato para la comunicación con proveedores de Inteligencia Artificial.

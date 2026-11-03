@@ -208,3 +208,67 @@ func (w *StartWorkflow) Execute(ctx context.Context, branchType, issueID, huCode
 	return branchName, nil
 }
 
+// ParseIssueForBranch extrae el tipo semántico, el código de Historia de Usuario y la descripción limpia desde un IssueInfo.
+func ParseIssueForBranch(issue *IssueInfo) (branchType, huCode, description string) {
+	if issue == nil {
+		return "feat", "", ""
+	}
+
+	rawTitle := strings.TrimSpace(issue.Title)
+	branchType = "feat"
+	lowerTitle := strings.ToLower(rawTitle)
+
+	// 1. Revisar etiquetas (labels) del issue
+	for _, l := range issue.Labels {
+		name := strings.ToLower(l.Name)
+		if strings.Contains(name, "bug") || strings.Contains(name, "fix") {
+			branchType = "fix"
+			break
+		} else if strings.Contains(name, "doc") {
+			branchType = "docs"
+			break
+		} else if strings.Contains(name, "refactor") {
+			branchType = "refactor"
+			break
+		} else if strings.Contains(name, "test") {
+			branchType = "test"
+			break
+		}
+	}
+
+	// 2. Si no vino en labels, analizar prefijos en el título (ej. "docs: ...", "fix: ...", "[FIX] ...")
+	if branchType == "feat" {
+		if strings.HasPrefix(lowerTitle, "fix") || strings.HasPrefix(lowerTitle, "[fix]") || strings.HasPrefix(lowerTitle, "bug") {
+			branchType = "fix"
+		} else if strings.HasPrefix(lowerTitle, "doc") || strings.HasPrefix(lowerTitle, "[doc") {
+			branchType = "docs"
+		} else if strings.HasPrefix(lowerTitle, "refactor") {
+			branchType = "refactor"
+		} else if strings.HasPrefix(lowerTitle, "test") {
+			branchType = "test"
+		}
+	}
+
+	// 3. Detección de código de Historia de Usuario (ej. "[HU-01]", "HU-1", "HU01")
+	reHU := regexp.MustCompile(`(?i)\[?(HU[-_ ]?[0-9]+)\]?`)
+	cleanTitle := rawTitle
+	if match := reHU.FindStringSubmatch(rawTitle); len(match) > 1 {
+		huCode = strings.ToUpper(match[1])
+		cleanTitle = reHU.ReplaceAllString(cleanTitle, "")
+	}
+
+	// 4. Limpiar prefijos convencionales del título (ej. "docs: ...", "feat(cli): ...", "[EPIC] ...", etc.)
+	rePrefix := regexp.MustCompile(`(?i)^(\[[a-z0-9_-]+\]|[a-z]+(\([a-z0-9_-]+\))?:)\s*`)
+	cleanTitle = rePrefix.ReplaceAllString(cleanTitle, "")
+
+	// 5. Normalizar delimitadores y espacios
+	cleanTitle = strings.Trim(cleanTitle, "-: \t[]")
+	description = strings.TrimSpace(cleanTitle)
+	if description == "" {
+		description = rawTitle
+	}
+
+	return branchType, huCode, description
+}
+
+

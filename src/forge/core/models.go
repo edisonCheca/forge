@@ -55,3 +55,16 @@ type PRProposal struct {
 	GeneratedAt time.Time
 	ModelUsed   string
 }
+
+// IssueLabel representa una etiqueta asociada a un issue en GitHub.
+type IssueLabel struct {
+	Name string `json:"name"`
+}
+
+// IssueInfo encapsula los detalles de una incidencia recuperada desde GitHub.
+type IssueInfo struct {
+	Number int          `json:"number"`
+	Title  string       `json:"title"`
+	Body   string       `json:"body"`
+	Labels []IssueLabel `json:"labels"`
+}

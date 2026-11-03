@@ -39,16 +39,61 @@ var startCmd = &cobra.Command{
 		huCode := strings.TrimSpace(startHUFlag)
 		baseBranch := strings.TrimSpace(startBaseFlag)
 
-		// Modo interactivo si faltan datos clave
-		if issueID == "" || description == "" {
+		// 1. Si se pasó el issue pero no la descripción, consultar automáticamente en GitHub
+		if issueID != "" && description == "" {
+			fmt.Println()
+			fmt.Println(styleAction(fmt.Sprintf("Consultando detalles del Issue #%s en GitHub...", strings.TrimPrefix(issueID, "#"))))
+			issueInfo, errFetch := gitAdapter.GetIssueDetails(cmd.Context(), issueID)
+			if errFetch == nil && issueInfo != nil {
+				inferredType, inferredHU, inferredDesc := core.ParseIssueForBranch(issueInfo)
+				if !cmd.Flags().Changed("type") && inferredType != "" {
+					branchType = inferredType
+				}
+				if !cmd.Flags().Changed("hu") && inferredHU != "" {
+					huCode = inferredHU
+				}
+				description = inferredDesc
+				fmt.Println(styleSuccess(fmt.Sprintf("Issue #%d encontrado: \"%s\"", issueInfo.Number, issueInfo.Title)))
+			} else {
+				fmt.Println(styleWarning(fmt.Sprintf("No se pudo obtener el issue de GitHub (%v). Proceda manualmente.", errFetch)))
+			}
+		}
+
+		// 2. Si no se pasó el issueID por argumento, solicitarlo interactivamente
+		if issueID == "" {
 			fmt.Println()
 			fmt.Println(Banner)
 			printSeparator()
 			fmt.Println(styleTitle("Asistente de Creación de Ramas (forge start)"))
 			printSeparator()
 
+			fmt.Print(promptPrefix("1. ID del Issue o Tarea en GitHub (ej. 5 o #5): "))
+			idInput, _ := reader.ReadString('\n')
+			issueID = strings.TrimSpace(idInput)
+			if issueID == "" {
+				return fmt.Errorf("el ID del issue o tarea es requerido para la trazabilidad")
+			}
+
+			// Intentar autocompletar tras ingresar el ID en el wizard
+			fmt.Println(styleAction(fmt.Sprintf("Consultando detalles del Issue #%s en GitHub...", strings.TrimPrefix(issueID, "#"))))
+			issueInfo, errFetch := gitAdapter.GetIssueDetails(cmd.Context(), issueID)
+			if errFetch == nil && issueInfo != nil {
+				inferredType, inferredHU, inferredDesc := core.ParseIssueForBranch(issueInfo)
+				if !cmd.Flags().Changed("type") && inferredType != "" {
+					branchType = inferredType
+				}
+				if !cmd.Flags().Changed("hu") && inferredHU != "" {
+					huCode = inferredHU
+				}
+				description = inferredDesc
+				fmt.Println(styleSuccess(fmt.Sprintf("Issue #%d encontrado: \"%s\"", issueInfo.Number, issueInfo.Title)))
+			}
+		}
+
+		// 3. Fallback interactivo si tras la consulta de GitHub aún falta la descripción (ej. offline o error)
+		if description == "" {
 			if branchType == "" || branchType == "feat" {
-				fmt.Print(promptPrefix("1. Tipo de rama [feat/fix/docs/refactor/test/chore] (Por defecto: feat): "))
+				fmt.Print(promptPrefix("2. Tipo de rama [feat/fix/docs/refactor/test/chore] (Por defecto: feat): "))
 				tInput, _ := reader.ReadString('\n')
 				tTrimmed := strings.TrimSpace(tInput)
 				if tTrimmed != "" {
@@ -58,28 +103,17 @@ var startCmd = &cobra.Command{
 				}
 			}
 
-			if issueID == "" {
-				fmt.Print(promptPrefix("2. ID del Issue o Tarea en GitHub (ej. 5 o #5): "))
-				idInput, _ := reader.ReadString('\n')
-				issueID = strings.TrimSpace(idInput)
-				if issueID == "" {
-					return fmt.Errorf("el ID del issue o tarea es requerido para la trazabilidad")
-				}
-			}
-
 			if huCode == "" {
 				fmt.Print(promptPrefix("3. Código de Historia de Usuario (ej. HU-01, o Enter para omitir): "))
 				huInput, _ := reader.ReadString('\n')
 				huCode = strings.TrimSpace(huInput)
 			}
 
+			fmt.Print(promptPrefix("4. Breve descripción del objetivo (ej. Control de Acceso RBAC): "))
+			descInput, _ := reader.ReadString('\n')
+			description = strings.TrimSpace(descInput)
 			if description == "" {
-				fmt.Print(promptPrefix("4. Breve descripción del objetivo (ej. Control de Acceso RBAC): "))
-				descInput, _ := reader.ReadString('\n')
-				description = strings.TrimSpace(descInput)
-				if description == "" {
-					return fmt.Errorf("la descripción es requerida para construir el nombre de la rama")
-				}
+				return fmt.Errorf("la descripción es requerida para construir el nombre de la rama")
 			}
 		}
 

@@ -65,7 +65,7 @@ En lugar de describir archivos individuales, la arquitectura define **módulos f
 
 ### `src/forge/core/`
 * **Responsabilidad:** El corazón del sistema. Contiene los casos de uso y la orquestación de los flujos de trabajo principales:
-  1. `StartWorkflow`: Construye y valida nombres estandarizados de rama (`BuildBranchName`, `Slugify`) a partir de tipos convencionales, IDs de incidencias y códigos de Historias de Usuario, orquestando su creación y activación.
+  1. `StartWorkflow`: Construye y valida nombres estandarizados de rama (`BuildBranchName`, `Slugify`, `ParseIssueForBranch`) a partir de la consulta automática a GitHub o ingreso manual de incidencias y códigos de Historias de Usuario, orquestando su creación y activación.
   2. `CommitWorkflow`: Solicita la información del diff al adaptador Git, construye el contexto estructurado, lo envía a evaluar al adaptador de IA, ejecuta las reglas deterministas de validación sobre la propuesta recibida y devuelve el resultado final.
   3. `PRWorkflow`: Extrae la semántica de la rama de trabajo (`ExtractBranchInfo`) para identificar Historias de Usuario (ej. `#5`) y códigos (`HU-01`), recopila el historial de commits contra la rama base y orquesta la síntesis ejecutiva con la IA.
   4. *Contratos (Puertos):* Define las interfaces abstractas `GitPort`, `AIPort` y `ConfigPort`, garantizando un desacoplamiento total de la infraestructura subyacente.
@@ -74,10 +74,8 @@ En lugar de describir archivos individuales, la arquitectura define **módulos f
 ### `src/forge/adapters/git/`
 * **Responsabilidad:** Introspección y control del sistema de control de versiones y plataforma de código. Implementa `core.GitPort` para:
   - Creación y bifurcación de ramas locales (`CreateBranch`).
+  - Consulta de incidencias y metadatos remotos en GitHub (`GetIssueDetails` vía `gh issue view`).
   - Detección de cambios preparados en staging (`HasStagedChanges`, `GetRepositoryContext`).
-  - Ejecución formal de commits (`ExecuteCommit`).
-  - Inspección de ramas y diferencias de historial (`GetCurrentBranch`, `GetBranchLog`).
-  - Sincronización remota (`PushBranch`) y orquestación con GitHub CLI (`CreatePullRequest` vía `gh pr create`).
   - Ejecución formal de commits (`ExecuteCommit`).
   - Inspección de ramas y diferencias de historial (`GetCurrentBranch`, `GetBranchLog`).
   - Sincronización remota (`PushBranch`) y orquestación con GitHub CLI (`CreatePullRequest` vía `gh pr create`).

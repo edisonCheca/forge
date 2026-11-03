@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -156,5 +157,33 @@ func (a *GitAdapter) CreateBranch(ctx context.Context, branchName, baseBranch st
 	}
 	return nil
 }
+
+// GetIssueDetails consulta los metadatos de un issue en GitHub usando 'gh issue view <id> --json number,title,body,labels'.
+func (a *GitAdapter) GetIssueDetails(ctx context.Context, issueID string) (*core.IssueInfo, error) {
+	cleanID := strings.TrimPrefix(strings.TrimSpace(issueID), "#")
+	args := []string{"issue", "view", cleanID, "--json", "number,title,body,labels"}
+	cmd := exec.CommandContext(ctx, "gh", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		// Fallback para entorno Windows / WSL si 'gh' no está en el path directo
+		if errors.Is(err, exec.ErrNotFound) || strings.Contains(err.Error(), "executable file not found") {
+			cmdWin := exec.CommandContext(ctx, "gh.exe", args...)
+			if outWin, errWin := cmdWin.CombinedOutput(); errWin == nil {
+				out = outWin
+				err = nil
+			}
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("falló la consulta del issue #%s en GitHub: %s (%w)", cleanID, strings.TrimSpace(string(out)), err)
+	}
+
+	var info core.IssueInfo
+	if err := json.Unmarshal(out, &info); err != nil {
+		return nil, fmt.Errorf("error al interpretar la respuesta JSON del issue: %w", err)
+	}
+	return &info, nil
+}
+
 
 
