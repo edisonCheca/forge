@@ -68,3 +68,39 @@ type IssueInfo struct {
 	Body   string       `json:"body"`
 	Labels []IssueLabel `json:"labels"`
 }
+
+// ReviewSeverity indica el nivel de severidad de un hallazgo.
+type ReviewSeverity string
+
+const (
+	SeverityCritical ReviewSeverity = "CRITICAL" // Secretos, archivos sensibles, tokens expuestos
+	SeverityWarning  ReviewSeverity = "WARNING"  // Debuggers olvidados, prints, código de prueba
+	SeverityInfo     ReviewSeverity = "INFO"     // Sugerencias de optimización o estilo
+)
+
+// ReviewFinding representa un hallazgo estático o semántico en el código.
+type ReviewFinding struct {
+	Severity ReviewSeverity
+	Category string // "Security", "Quality", "Best Practices"
+	File     string
+	Line     int
+	Message  string
+	Snippet  string
+}
+
+// ReviewResult encapsula el reporte completo de la auditoría.
+type ReviewResult struct {
+	Passed       bool
+	Findings     []ReviewFinding
+	AISummary    string
+	FilesChecked int
+}
+
+// ReviewRequest representa la solicitud de auditoría de código.
+type ReviewRequest struct {
+	Diff         string
+	Language     string
+	StaticOnly   bool
+	ExtraContext string
+}
+

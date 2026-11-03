@@ -400,3 +400,95 @@ func resolveLanguageName(lang string) string {
 		return lang
 	}
 }
+
+// ReviewCode envía un diff filtrado a la IA para obtener recomendaciones semánticas y de calidad.
+func (a *OpenAIAdapter) ReviewCode(ctx context.Context, req *core.ReviewRequest) (string, error) {
+	langName := resolveLanguageName(req.Language)
+
+	systemPrompt := fmt.Sprintf(`Eres Forge Senior Code Reviewer, un revisor de código experto de ingeniería de software.
+Tu labor es auditar diffs de código y proporcionar retroalimentación técnica de alto impacto y sumamente concisa.
+
+Reglas obligatorias:
+- Redacta tu respuesta obligatoriamente en el idioma solicitado: %s.
+- Sé directo, conciso y técnico. No incluyas saludos ni despedidas.
+- Concéntrate en:
+  1. Riesgos de lógica, casos límite no manejados o gestión de errores deficiente.
+  2. Posibles cuellos de botella o condiciones de carrera.
+  3. Coherencia arquitectónica y mantenibilidad.
+- Si el código está impecable y no tiene riesgos evidentes, indícalo claramente con una breve justificación.
+- Estructura tu respuesta en máximo 3 o 4 viñetas breves con el prefijo "- ".`, langName)
+
+	userPrompt := fmt.Sprintf("Diff a auditar:\n```\n%s\n```\n", req.Diff)
+	if req.ExtraContext != "" {
+		userPrompt += fmt.Sprintf("\nContexto adicional del autor:\n%s\n", req.ExtraContext)
+	}
+
+	messages := []chatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	}
+
+	payload := chatRequest{
+		Model:    a.model,
+		Messages: messages,
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal review request: %w", err)
+	}
+
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			return "", fmt.Errorf("failed to create http request: %w", err)
+		}
+
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
+		httpReq.Header.Set("HTTP-Referer", "https://github.com/edisonCheca/forge")
+		httpReq.Header.Set("X-Title", "Forge Code Reviewer")
+
+		resp, err := a.httpClient.Do(httpReq)
+		if err != nil {
+			lastErr = fmt.Errorf("http request failed (attempt %d/%d): %w", attempt, maxRetries, err)
+			time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+			continue
+		}
+
+		respBytes, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response body (attempt %d/%d): %w", attempt, maxRetries, err)
+			time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+			continue
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			lastErr = fmt.Errorf("api error (status %d): %s", resp.StatusCode, string(respBytes))
+			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+				time.Sleep(time.Duration(attempt) * 1 * time.Second)
+				continue
+			}
+			return "", lastErr
+		}
+
+		var chatResp chatResponse
+		if err := json.Unmarshal(respBytes, &chatResp); err != nil {
+			return "", fmt.Errorf("failed to unmarshal api response: %w", err)
+		}
+
+		if len(chatResp.Choices) == 0 {
+			return "", fmt.Errorf("no completion choices returned by ai provider")
+		}
+
+		return strings.TrimSpace(chatResp.Choices[0].Message.Content), nil
+	}
+
+	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+}
+

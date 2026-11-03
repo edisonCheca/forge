@@ -10,7 +10,8 @@
 
 ## Características Principales
 
-- **Creación Inteligente de Ramas (`forge start`)**: Genera ramas de trabajo estandarizadas vinculadas a Historias de Usuario e Issues de GitHub (`feat/5-hu-01-control-de-acceso`), normalizando nombres y activando la rama automáticamente.
+- **Creación Inteligente de Ramas (`forge start`)**: Genera ramas de trabajo estandarizadas vinculadas a Historias de Usuario e Issues de GitHub (`feat/5-hu-01-control-de-acceso`), resolviendo metadatos y activando la rama automáticamente.
+- **Auditoría Híbrida de Seguridad y Calidad (`forge review`)**: Inspecciona cambios en staging o ramas antes de comitear. Detecta archivos sensibles (`.env`), secretos filtrados (`sk-...`), llamadas de depuración olvidadas (`console.log`, `fmt.Println`) y ofrece recomendaciones semánticas con IA.
 - **Conventional Commits Estrictos (`forge commit`)**: Genera mensajes que cumplen a cabalidad con el estándar Conventional Commits (`feat(auth): ...`), garantizando compatibilidad total con linters estrictos como `commitlint` y herramientas de automatización de versiones.
 - **Creación Automatizada de Pull Requests (`forge pr`)**: Sintetiza el historial de commits de tu rama contra la rama base, estructurando historias de usuario, subtareas resueltas y notas de diseño, publicando directamente en GitHub mediante la integración con GitHub CLI (`gh`).
 - **Trazabilidad de Tareas e Issues (`--issue`)**: Vincula identificadores de tareas o subtareas (ej. `#10`, `PROJ-123`) a tus commits y PRs para mantener trazabilidad con gestores como Jira o GitHub Issues.
@@ -92,7 +93,53 @@ Base: main
 
 ---
 
-### 2. Generador Inteligente de Commits (`forge commit`)
+### 2. Auditoría Previa de Código (`forge review`)
+
+Audita los cambios preparados en staging antes de comitear o revisa los commits acumulados en tu rama frente a la rama base:
+
+```bash
+# Auditar cambios en staging con reglas estáticas e IA:
+forge review
+
+# Modo rápido sin costo (solo reglas estáticas deterministas, 0 tokens):
+forge review --static-only
+
+# Auditar la rama completa frente a develop/main:
+forge review --branch --base main
+```
+
+*(Opciones disponibles)*:
+- `--static-only` / `-s`: Ejecuta únicamente auditoría estática determinista sin invocar la API de IA (0 costo).
+- `--branch` / `-b`: Audita los cambios de la rama frente a la rama base (útil antes de abrir un PR).
+- `--base`: Rama base de comparación en modo rama (por defecto: `develop`).
+- `--extra` / `-e`: Pasa contexto sobre la intención del código para que la IA refine su análisis.
+
+#### Ejemplo de Salida:
+```text
+→ Iniciando auditoría de código sobre Área de Staging (cambios preparados)...
+
+─────────────────────────────────────────────────────────────────
+◆ Resultados de la Auditoría (forge review)
+─────────────────────────────────────────────────────────────────
+Alcance:               Área de Staging (cambios preparados)
+Archivos auditados:    3
+─────────────────────────────────────────────────────────────────
+
+🟡 ADVERTENCIAS DE CALIDAD Y LIMPIEZA:
+  1. ⚠ [Calidad] Archivo: src/service.go (Línea ~34)
+     Mensaje: Llamada 'fmt.Println' en paquete de lógica/dominio. Utilice un logger estructurado.
+
+◆ Análisis Semántico y Sugerencias de Arquitectura (IA)
+- Asegurar validación de punteros nulos en `ProcessTransaction`.
+- Manejar adecuadamente el timeout del contexto en llamadas a repositorios externos.
+
+─────────────────────────────────────────────────────────────────
+✓ AUDITORÍA EXITOSA: Código limpio, seguro y listo para producción.
+```
+
+---
+
+### 3. Generador Inteligente de Commits (`forge commit`)
 
 1. **Prepara tus cambios en el staging area de Git**:
    ```bash
@@ -144,7 +191,7 @@ feat(cli): integrar wizard interactivo de configuración y soporte en español
 
 ---
 
-### 3. Creación Automatizada de Pull Requests (`forge pr`)
+### 4. Creación Automatizada de Pull Requests (`forge pr`)
 
 Forge analiza automáticamente los commits realizados en tu rama actual frente a la rama base, sintetiza un resumen ejecutivo con IA y crea el Pull Request en GitHub:
 
