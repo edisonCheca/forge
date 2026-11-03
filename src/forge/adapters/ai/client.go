@@ -358,10 +358,12 @@ CRITICAL: DO NOT use any emojis anywhere in the title or body. Maintain a clean,
 				finalTitle += " (" + req.StoryID + ")"
 			}
 
-			// 2. Garantía determinista en el cuerpo: corregir Closes #[0-9]+ bajo ## Historia de Usuario
-			reCloses := regexp.MustCompile(`(?i)(Closes\s+#)[0-9]+`)
+			// 2. Garantía determinista en el cuerpo: asegurar Closes #ID bajo ## Historia de Usuario
+			reCloses := regexp.MustCompile(`(?i)(Closes|Cierra)\s+#([0-9]+)`)
 			if reCloses.MatchString(finalBody) {
-				finalBody = reCloses.ReplaceAllString(finalBody, "${1}"+strings.TrimPrefix(req.StoryID, "#"))
+				finalBody = reCloses.ReplaceAllString(finalBody, "Closes #"+strings.TrimPrefix(req.StoryID, "#"))
+			} else if !strings.Contains(finalBody, "Closes "+req.StoryID) {
+				finalBody = fmt.Sprintf("## Historia de Usuario\nCloses %s\n\n%s", req.StoryID, finalBody)
 			}
 		}
 
