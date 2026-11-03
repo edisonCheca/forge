@@ -1,15 +1,15 @@
-# Documento de Arquitectura Física: Fase 1 (CLI Inteligente Local)
+# Documento de Arquitectura Física: Fase 1 (CLI Inteligente y Automatización de PRs)
 
 **Proyecto:** Forge  
 **Rol:** Arquitectura de Software Senior  
-**Estado:** Definición de Arquitectura Física Inicial (Fase 1)  
+**Estado:** Arquitectura Física Consolidada (Fase 1 + Extensión de Flujo de PRs)  
 **Clasificación:** Documento Técnico Fundamental  
 
 ---
 
 ## 1. Justificación de la Organización
 
-El objetivo primordial al diseñar la arquitectura física de **Forge** en su Fase 1 es resolver la tensión fundamental entre **simplicidad inicial** y **capacidad de evolución a largo plazo**. 
+El objetivo primordial al diseñar la arquitectura física de **Forge** es resolver la tensión fundamental entre **simplicidad inicial** y **capacidad de evolución a largo plazo**. 
 
 Muchos proyectos Open Source orientados a herramientas de terminal cometen dos errores en extremos opuestos:
 1. **El antipatrón del Monolito de Script:** estructurar todo el código en torno a los comandos del CLI (`commit.py`, `utils.py`), acoplando la interacción de la consola, las llamadas al sistema y la lógica de inteligencia artificial. Cuando el proyecto intenta crecer hacia integraciones externas o una biblioteca central (Core), el costo de refactorización es tan alto que suele requerir una reescritura total.
@@ -17,29 +17,29 @@ Muchos proyectos Open Source orientados a herramientas de terminal cometen dos e
 
 La organización propuesta para Forge adopta una **Arquitectura Hexagonal Pragmática (Puertos y Adaptadores)** adaptada a una aplicación de línea de comandos. Esta estructura justifica su diseño al trazar límites físicos infranqueables entre tres responsabilidades excluyentes:
 * **La Presentación (`cli`):** cómo interactúa el usuario con el sistema.
-* **El Núcleo de Negocio (`core`):** qué hace el sistema y cuáles son sus reglas de validación y flujo.
-* **La Infraestructura (`adapters`):** cómo se comunica el sistema con el mundo exterior (sistema de archivos, Git, APIs de Inteligencia Artificial).
+* **El Núcleo de Negocio (`core`):** qué hace el sistema y cuáles son sus reglas de validación y flujos de trabajo.
+* **La Infraestructura (`adapters`):** cómo se comunica el sistema con el mundo exterior (sistema de archivos, Git, GitHub CLI, APIs de Inteligencia Artificial).
 
-Esta separación estructural garantiza que el flujo especificado para la Fase 1 (`forge commit`) se ejecute con máxima eficiencia local, mientras que las fronteras de los módulos preparan el terreno para las transiciones arquitectónicas de las Fases 2, 3 y 4 sin reorganizar ni un solo directorio existente.
+Esta separación estructural garantiza que los flujos especificados para la Fase 1 (`forge commit` y `forge pr`) se ejecuten con máxima eficiencia local, mientras que las fronteras de los módulos preparan el terreno para las transiciones arquitectónicas de las Fases 2, 3 y 4 sin reorganizar ni un solo directorio existente.
 
 ---
 
 ## 2. Organización Física del Repositorio (Árbol de Fase 1)
 
-El siguiente árbol de directorios refleja **únicamente** aquello que existe y tiene responsabilidad funcional activa en la Fase 1 del proyecto. Se excluyen deliberadamente carpetas vacías o especulativas.
+El siguiente árbol de directorios refleja **únicamente** aquello que existe y tiene responsabilidad funcional activa en el proyecto:
 
 ```text
 forge/
 ├── docs/                 # Documentación técnica, visión y arquitectura del proyecto
-├── tests/                # Suite de pruebas automatizadas aisladas por módulo
+├── tests/                # Suite de pruebas automatizadas (planificada para unitarias/integración)
 └── src/
     └── forge/
-        ├── cli/          # Capa de presentación: interfaz y comandos de terminal
-        ├── core/         # Lógica de dominio, flujos de trabajo y reglas de validación
+        ├── cli/          # Capa de presentación: commit, pr, root y estilos de consola
+        ├── core/         # Dominio: CommitWorkflow, PRWorkflow, puertos, modelos y parsers
         ├── adapters/     # Integraciones y comunicación con sistemas externos
-        │   ├── git/      # Adaptador para introspección del repositorio Git local
-        │   └── ai/       # Adaptadores y abstracciones para proveedores de IA
-        └── config/       # Carga, validación y gestión de preferencias locales
+        │   ├── git/      # Adaptador Git CLI e integración con GitHub CLI (gh)
+        │   └── ai/       # Adaptador agnóstico compatible con OpenAI/OpenRouter/Local
+        └── config/       # Gestión y persistencia segura de credenciales (~/.forge.json)
 ```
 
 ---
@@ -53,30 +53,40 @@ En lugar de describir archivos individuales, la arquitectura define **módulos f
 * **Límite:** No contiene código ejecutable ni scripts de automatización.
 
 ### `tests/`
-* **Responsabilidad:** Aseguramiento de la calidad mediante pruebas unitarias, de integración y de contrato. Reproduce la topología de `src/forge/` para verificar cada módulo de forma aislada (por ejemplo, simulando respuestas de Git o de APIs de IA sin realizar llamadas de red reales).
+* **Responsabilidad:** Aseguramiento de la calidad mediante pruebas unitarias, de integración y de contrato. Reproducirá la topología de `src/forge/` para verificar cada módulo de forma aislada (simulando respuestas de Git o de APIs de IA sin realizar llamadas de red reales).
 * **Límite:** Código estrictamente de diagnóstico y verificación; no puede ser importado por el código de producción.
 
 ### `src/forge/`
 * **Responsabilidad:** Directorio raíz del paquete ejecutable y distribuible de la aplicación. Actúa como el contenedor de espacio de nombres (namespace) de todo el software.
 
 ### `src/forge/cli/`
-* **Responsabilidad:** Gestión exclusiva de la interfaz de línea de comandos. Interpreta los argumentos introducidos por el usuario, formatea la salida visual en la terminal, gestiona la interactividad (solicitud de confirmación `y/n` para ejecutar el commit) y traduce las excepciones técnicas en mensajes legibles para el desarrollador.
+* **Responsabilidad:** Gestión exclusiva de la interfaz de línea de comandos. Interpreta los argumentos introducidos por el usuario (`forge commit`, `forge pr`), formatea la salida visual en la terminal mediante componentes enriquecidos (`style.go`), gestiona la interactividad (solicitud de confirmación `y/n` para commits o creación de PRs) y traduce las excepciones técnicas en mensajes legibles para el desarrollador. Dispone de banderas para granularidad de salida (`--concise`, `--detailed`), asociación de incidencias (`--issue`), ramas base (`--base`) y contexto complementario (`--extra`).
 * **Límite:** No toma decisiones de negocio, no inspecciona archivos locales directamente ni se comunica con APIs externas. Solo invoca flujos expuestos por el módulo `core`.
 
 ### `src/forge/core/`
-* **Responsabilidad:** El corazón del sistema. Contiene los casos de uso y la orquestación del flujo de la Fase 1 (`commit workflow`). Solicita la información del diff al adaptador Git, construye el contexto estructurado, lo envía a evaluar al adaptador de IA, ejecuta las reglas deterministas de validación sobre la propuesta recibida y devuelve el resultado final listo para confirmación.
+* **Responsabilidad:** El corazón del sistema. Contiene los casos de uso y la orquestación de los flujos de trabajo principales:
+  1. `CommitWorkflow`: Solicita la información del diff al adaptador Git, construye el contexto estructurado, lo envía a evaluar al adaptador de IA, ejecuta las reglas deterministas de validación sobre la propuesta recibida y devuelve el resultado final.
+  2. `PRWorkflow`: Extrae la semántica de la rama de trabajo (`ExtractBranchInfo`) para identificar Historias de Usuario (ej. `#5`) y códigos (`HU-01`), recopila el historial de commits contra la rama base y orquesta la síntesis ejecutiva con la IA.
+  3. *Contratos (Puertos):* Define las interfaces abstractas `GitPort`, `AIPort` y `ConfigPort`, garantizando un desacoplamiento total de la infraestructura subyacente.
 * **Límite:** Es completamente agnóstico respecto a cómo se imprimen los datos en la pantalla, qué librería específica interactúa con Git o qué proveedor HTTP se utiliza para conectar con el modelo de IA.
 
 ### `src/forge/adapters/git/`
-* **Responsabilidad:** Introspección y control del sistema de control de versiones local. Se encarga de ejecutar comandos o consultar librerías subyacentes para obtener los archivos modificados en el área de preparación (staging area), leer el historial reciente y, tras la autorización superior, ejecutar la orden formal de `git commit`.
+* **Responsabilidad:** Introspección y control del sistema de control de versiones y plataforma de código. Implementa `core.GitPort` para:
+  - Detección de cambios preparados en staging (`HasStagedChanges`, `GetRepositoryContext`).
+  - Ejecución formal de commits (`ExecuteCommit`).
+  - Inspección de ramas y diferencias de historial (`GetCurrentBranch`, `GetBranchLog`).
+  - Sincronización remota (`PushBranch`) y orquestación con GitHub CLI (`CreatePullRequest` vía `gh pr create`).
 * **Límite:** Desconoce por completo la existencia de motores de Inteligencia Artificial o de la interfaz gráfica de terminal. Traduce la salida cruda de Git a estructuras de datos puras entendibles por `core`.
 
 ### `src/forge/adapters/ai/`
-* **Responsabilidad:** Comunicación con los proveedores de Inteligencia Artificial. Implementa las abstracciones requeridas para serializar el contexto del repositorio, formatear los prompts del sistema, gestionar la autenticación de red, aplicar estrategias de reintento ante fallos HTTP y normalizar las respuestas del modelo en texto estructurado.
+* **Responsabilidad:** Comunicación con proveedores de Inteligencia Artificial compatibles con la API de OpenAI (OpenRouter, OpenAI, Groq, Ollama). Implementa `core.AIPort` (`GenerateCommit` y `GeneratePullRequest`):
+  - Mapeo y resolución estricta de nombres de idiomas (`resolveLanguageName`).
+  - Jerarquía de verdad y resolución de conflictos (priorizando el historial real de Git sobre notas contradictorias).
+  - Control de verbosidad (`concise`, `balanced`, `detailed`).
 * **Límite:** No evalúa si el commit generado cumple con las normas del proyecto de ingeniería (esa tarea pertenece a `core`). Solo garantiza que la comunicación con el proveedor sea robusta y confiable.
 
 ### `src/forge/config/`
-* **Responsabilidad:** Centralización de la lectura, resolución y validación de parámetros de configuración (por ejemplo, claves de API, modelo de IA seleccionado, idioma de preferencia o convenciones de commit elegidas por el usuario).
+* **Responsabilidad:** Centralización de la lectura, resolución, persistencia segura (`0600` en `~/.forge.json`) y validación de parámetros de configuración (claves de API, modelo de IA seleccionado, idioma de preferencia o convenciones activas).
 * **Límite:** Provee datos estáticos o resueltos al resto de la aplicación, pero no ejecuta lógica operacional ni flujos de trabajo.
 
 ---
@@ -162,6 +172,7 @@ Durante el diseño de la Fase 1, se han evaluado y neutralizado proactivamente l
 | **Agrupación de integraciones bajo el namespace `adapters/`** | Aplica el principio de inversión de dependencias aislando el dominio de bibliotecas o APIs externas inestables o cambiantes. | Permite simular (mockear) Git y los proveedores de IA con una sola línea en las pruebas automatizadas, haciendo los tests ultrarrapidos. | Permite agregar soporte para GitHub, GitLab o Jira en la Fase 4 agregando subcarpetas en `adapters/` sin tocar la lógica fundacional. |
 | **Exclusión de directorios vacíos para funcionalidades futuras** | Respeta la carga cognitiva de colaboradores Open Source mostrando únicamente componentes con responsabilidades reales e implementadas. | El repositorio es limpio, fácil de entender y auditable por cualquier programador que se sume al proyecto en su etapa inicial. | Evita el mantenimiento de abstracciones especulativas incorrectas. Cuando la funcionalidad nace, el directorio se crea con el diseño exacto requerido. |
 | **Centralización del módulo `config/` como dependencia hoja** | Evita la dispersión de lectura de variables de entorno o archivos de usuario en múltiples puntos del programa. | Unifica la validación de credenciales de IA y preferencias de formato de commit antes de ejecutar cualquier llamada costosa de red. | Permite que en el futuro la configuración provenga de variables institucionales CI/CD o políticas corporativas sin alterar los analizadores. |
+| **Orquestación de PRs vinculados a HUs (`forge pr`)** | Conecta el análisis de commits con los identificadores de tareas de Git/GitHub mediante parsing determinista de ramas y síntesis ejecutiva. | Automatiza la creación de Pull Requests con resolución de issues (`Closes #ID`) sin salir de la terminal. | Facilita la transición hacia la Fase 4 de integraciones avanzadas y la Fase 5 de pipelines de CI/CD. |
 
 ---
 
