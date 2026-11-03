@@ -10,8 +10,9 @@
 
 ## Características Principales
 
-- **Conventional Commits Estrictos**: Genera mensajes que cumplen a cabalidad con el estándar Conventional Commits (`feat(auth): ...`), garantizando compatibilidad total con linters estrictos como `commitlint` y herramientas de automatización de versiones.
-- **Creación Inteligente de Pull Requests (`forge pr`)**: Sintetiza el historial de commits de tu rama contra la rama base, estructurando historias de usuario, subtareas resueltas y notas de diseño, publicando directamente en GitHub mediante la integración con GitHub CLI (`gh`).
+- **Creación Inteligente de Ramas (`forge start`)**: Genera ramas de trabajo estandarizadas vinculadas a Historias de Usuario e Issues de GitHub (`feat/5-hu-01-control-de-acceso`), normalizando nombres y activando la rama automáticamente.
+- **Conventional Commits Estrictos (`forge commit`)**: Genera mensajes que cumplen a cabalidad con el estándar Conventional Commits (`feat(auth): ...`), garantizando compatibilidad total con linters estrictos como `commitlint` y herramientas de automatización de versiones.
+- **Creación Automatizada de Pull Requests (`forge pr`)**: Sintetiza el historial de commits de tu rama contra la rama base, estructurando historias de usuario, subtareas resueltas y notas de diseño, publicando directamente en GitHub mediante la integración con GitHub CLI (`gh`).
 - **Trazabilidad de Tareas e Issues (`--issue`)**: Vincula identificadores de tareas o subtareas (ej. `#10`, `PROJ-123`) a tus commits y PRs para mantener trazabilidad con gestores como Jira o GitHub Issues.
 - **Agnóstico al Proveedor de IA**: Compatible con cualquier API basada en OpenAI, incluyendo **OpenRouter**, **OpenAI**, **Groq**, **Anthropic** (vía gateways) o modelos ejecutados localmente (**Ollama**, **LM Studio**).
 - **Asistente Interactivo (Wizard)**: Configuración guiada en la primera ejecución que almacena tus preferencias de forma segura en `~/.forge.json` (con permisos protegidos `0600`).
@@ -52,7 +53,40 @@ go install github.com/edisonCheca/forge@latest
 
 ## Uso
 
-### 1. Generador Inteligente de Commits (`forge commit`)
+### 1. Creación Estandarizada de Ramas (`forge start`)
+
+Inicia el desarrollo de una nueva Historia de Usuario o incidencia creando una rama con la convención óptima:
+
+```bash
+# Modo rápido con argumentos:
+forge start 5 "Control de Acceso RBAC" --hu HU-01 --type feat
+
+# Modo interactivo guiado:
+forge start
+```
+
+*(Opciones disponibles)*:
+- `--type` / `-t`: Tipo de cambio (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`). Por defecto: `feat`.
+- `--hu` / `-u`: Código opcional de la Historia de Usuario (ej. `HU-01` o `1`).
+- `--base` / `-b`: Rama base origen (por defecto: rama actual).
+
+#### Ejemplo de Salida:
+```text
+─────────────────────────────────────────────────────────────────
+◆ Propuesta de Nueva Rama:
+─────────────────────────────────────────────────────────────────
+Rama: feat/5-hu-01-control-de-acceso-rbac
+Base: main
+─────────────────────────────────────────────────────────────────
+» ¿Crear y cambiar a esta rama? [Y/n]: Y
+
+✓ Rama 'feat/5-hu-01-control-de-acceso-rbac' creada y activada exitosamente.
+ℹ Flujo sugerido: realiza tus cambios, ejecuta 'forge commit -i 5' y al finalizar 'forge pr'.
+```
+
+---
+
+### 2. Generador Inteligente de Commits (`forge commit`)
 
 1. **Prepara tus cambios en el staging area de Git**:
    ```bash
@@ -104,7 +138,7 @@ feat(cli): integrar wizard interactivo de configuración y soporte en español
 
 ---
 
-### 2. Creación Automatizada de Pull Requests (`forge pr`)
+### 3. Creación Automatizada de Pull Requests (`forge pr`)
 
 Forge analiza automáticamente los commits realizados en tu rama actual frente a la rama base, sintetiza un resumen ejecutivo con IA y crea el Pull Request en GitHub:
 

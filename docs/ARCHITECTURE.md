@@ -60,19 +60,24 @@ En lugar de describir archivos individuales, la arquitectura define **módulos f
 * **Responsabilidad:** Directorio raíz del paquete ejecutable y distribuible de la aplicación. Actúa como el contenedor de espacio de nombres (namespace) de todo el software.
 
 ### `src/forge/cli/`
-* **Responsabilidad:** Gestión exclusiva de la interfaz de línea de comandos. Interpreta los argumentos introducidos por el usuario (`forge commit`, `forge pr`), formatea la salida visual en la terminal mediante componentes enriquecidos (`style.go`), gestiona la interactividad (solicitud de confirmación `y/n` para commits o creación de PRs) y traduce las excepciones técnicas en mensajes legibles para el desarrollador. Dispone de banderas para granularidad de salida (`--concise`, `--detailed`), asociación de incidencias (`--issue`), ramas base (`--base`) y contexto complementario (`--extra`).
+* **Responsabilidad:** Gestión exclusiva de la interfaz de línea de comandos. Interpreta los argumentos introducidos por el usuario (`forge start`, `forge commit`, `forge pr`), formatea la salida visual en la terminal mediante componentes enriquecidos (`style.go`), gestiona la interactividad (solicitud de confirmación `y/n` para creación de ramas, commits o PRs) y traduce las excepciones técnicas en mensajes legibles para el desarrollador. Dispone de banderas para granularidad de salida (`--concise`, `--detailed`), asociación de incidencias (`--issue`), ramas base (`--base`) y contexto complementario (`--extra`).
 * **Límite:** No toma decisiones de negocio, no inspecciona archivos locales directamente ni se comunica con APIs externas. Solo invoca flujos expuestos por el módulo `core`.
 
 ### `src/forge/core/`
 * **Responsabilidad:** El corazón del sistema. Contiene los casos de uso y la orquestación de los flujos de trabajo principales:
-  1. `CommitWorkflow`: Solicita la información del diff al adaptador Git, construye el contexto estructurado, lo envía a evaluar al adaptador de IA, ejecuta las reglas deterministas de validación sobre la propuesta recibida y devuelve el resultado final.
-  2. `PRWorkflow`: Extrae la semántica de la rama de trabajo (`ExtractBranchInfo`) para identificar Historias de Usuario (ej. `#5`) y códigos (`HU-01`), recopila el historial de commits contra la rama base y orquesta la síntesis ejecutiva con la IA.
-  3. *Contratos (Puertos):* Define las interfaces abstractas `GitPort`, `AIPort` y `ConfigPort`, garantizando un desacoplamiento total de la infraestructura subyacente.
+  1. `StartWorkflow`: Construye y valida nombres estandarizados de rama (`BuildBranchName`, `Slugify`) a partir de tipos convencionales, IDs de incidencias y códigos de Historias de Usuario, orquestando su creación y activación.
+  2. `CommitWorkflow`: Solicita la información del diff al adaptador Git, construye el contexto estructurado, lo envía a evaluar al adaptador de IA, ejecuta las reglas deterministas de validación sobre la propuesta recibida y devuelve el resultado final.
+  3. `PRWorkflow`: Extrae la semántica de la rama de trabajo (`ExtractBranchInfo`) para identificar Historias de Usuario (ej. `#5`) y códigos (`HU-01`), recopila el historial de commits contra la rama base y orquesta la síntesis ejecutiva con la IA.
+  4. *Contratos (Puertos):* Define las interfaces abstractas `GitPort`, `AIPort` y `ConfigPort`, garantizando un desacoplamiento total de la infraestructura subyacente.
 * **Límite:** Es completamente agnóstico respecto a cómo se imprimen los datos en la pantalla, qué librería específica interactúa con Git o qué proveedor HTTP se utiliza para conectar con el modelo de IA.
 
 ### `src/forge/adapters/git/`
 * **Responsabilidad:** Introspección y control del sistema de control de versiones y plataforma de código. Implementa `core.GitPort` para:
+  - Creación y bifurcación de ramas locales (`CreateBranch`).
   - Detección de cambios preparados en staging (`HasStagedChanges`, `GetRepositoryContext`).
+  - Ejecución formal de commits (`ExecuteCommit`).
+  - Inspección de ramas y diferencias de historial (`GetCurrentBranch`, `GetBranchLog`).
+  - Sincronización remota (`PushBranch`) y orquestación con GitHub CLI (`CreatePullRequest` vía `gh pr create`).
   - Ejecución formal de commits (`ExecuteCommit`).
   - Inspección de ramas y diferencias de historial (`GetCurrentBranch`, `GetBranchLog`).
   - Sincronización remota (`PushBranch`) y orquestación con GitHub CLI (`CreatePullRequest` vía `gh pr create`).
@@ -173,6 +178,7 @@ Durante el diseño de la Fase 1, se han evaluado y neutralizado proactivamente l
 | **Exclusión de directorios vacíos para funcionalidades futuras** | Respeta la carga cognitiva de colaboradores Open Source mostrando únicamente componentes con responsabilidades reales e implementadas. | El repositorio es limpio, fácil de entender y auditable por cualquier programador que se sume al proyecto en su etapa inicial. | Evita el mantenimiento de abstracciones especulativas incorrectas. Cuando la funcionalidad nace, el directorio se crea con el diseño exacto requerido. |
 | **Centralización del módulo `config/` como dependencia hoja** | Evita la dispersión de lectura de variables de entorno o archivos de usuario en múltiples puntos del programa. | Unifica la validación de credenciales de IA y preferencias de formato de commit antes de ejecutar cualquier llamada costosa de red. | Permite que en el futuro la configuración provenga de variables institucionales CI/CD o políticas corporativas sin alterar los analizadores. |
 | **Orquestación de PRs vinculados a HUs (`forge pr`)** | Conecta el análisis de commits con los identificadores de tareas de Git/GitHub mediante parsing determinista de ramas y síntesis ejecutiva. | Automatiza la creación de Pull Requests con resolución de issues (`Closes #ID`) sin salir de la terminal. | Facilita la transición hacia la Fase 4 de integraciones avanzadas y la Fase 5 de pipelines de CI/CD. |
+| **Estandarización de ramas convencionales (`forge start`)** | Centraliza la normalización y slugificación de nombres de ramas asociadas a issues y HUs. | Previene ramas mal nombradas y alimenta de forma determinista la introspección de `forge commit` y `forge pr`. | Asegura trazabilidad completa en auditorías de código corporativo y herramientas de CI/CD. |
 
 ---
 

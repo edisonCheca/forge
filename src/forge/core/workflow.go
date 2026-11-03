@@ -124,3 +124,87 @@ func (w *PRWorkflow) Execute(ctx context.Context, branch, baseBranch string, com
 	}
 	return proposal, nil
 }
+
+// Slugify transforma una descripción en un slug limpio para nombres de rama (ej. "Control de Acceso (RBAC)" -> "control-de-acceso-rbac").
+func Slugify(text string) string {
+	text = strings.ToLower(text)
+	replacements := map[string]string{
+		"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u",
+		"ñ": "n", "ü": "u",
+	}
+	for orig, repl := range replacements {
+		text = strings.ReplaceAll(text, orig, repl)
+	}
+
+	reg := regexp.MustCompile(`[^a-z0-9\s-_]`)
+	text = reg.ReplaceAllString(text, " ")
+
+	words := strings.Fields(text)
+	return strings.Join(words, "-")
+}
+
+// BuildBranchName construye un nombre estandarizado de rama:
+// <tipo>/<issueID>-<huCode>-<slug> o <tipo>/<issueID>-<slug>
+func BuildBranchName(branchType, issueID, huCode, description string) string {
+	branchType = strings.TrimSpace(strings.ToLower(branchType))
+	if branchType == "" {
+		branchType = "feat"
+	}
+
+	cleanIssue := strings.TrimSpace(issueID)
+	cleanIssue = strings.TrimPrefix(cleanIssue, "#")
+
+	cleanHU := strings.TrimSpace(strings.ToLower(huCode))
+	if cleanHU != "" {
+		numPart := strings.TrimPrefix(cleanHU, "hu-")
+		numPart = strings.TrimPrefix(numPart, "hu")
+		var n int
+		if _, err := fmt.Sscanf(numPart, "%d", &n); err == nil {
+			cleanHU = fmt.Sprintf("hu-%02d", n)
+		} else if !strings.HasPrefix(cleanHU, "hu-") {
+			cleanHU = "hu-" + cleanHU
+		}
+	}
+
+	slug := Slugify(description)
+
+	var middleParts []string
+	if cleanIssue != "" {
+		middleParts = append(middleParts, cleanIssue)
+	}
+	if cleanHU != "" {
+		middleParts = append(middleParts, cleanHU)
+	}
+	if slug != "" {
+		middleParts = append(middleParts, slug)
+	}
+
+	var branchPath string
+	if len(middleParts) > 0 {
+		branchPath = strings.Join(middleParts, "-")
+	} else {
+		branchPath = "nueva-funcionalidad"
+	}
+
+	return fmt.Sprintf("%s/%s", branchType, branchPath)
+}
+
+// StartWorkflow orquesta la creación y activación de una nueva rama de trabajo.
+type StartWorkflow struct {
+	git GitPort
+}
+
+// NewStartWorkflow crea una nueva instancia de StartWorkflow.
+func NewStartWorkflow(git GitPort) *StartWorkflow {
+	return &StartWorkflow{git: git}
+}
+
+// Execute valida y crea la rama estandarizada.
+func (w *StartWorkflow) Execute(ctx context.Context, branchType, issueID, huCode, description, baseBranch string) (string, error) {
+	branchName := BuildBranchName(branchType, issueID, huCode, description)
+	if err := w.git.CreateBranch(ctx, branchName, baseBranch); err != nil {
+		return "", err
+	}
+	return branchName, nil
+}
+
